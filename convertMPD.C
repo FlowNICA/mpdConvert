@@ -4,7 +4,8 @@ using namespace ROOT::RDF;
 using ROOT::VecOps::Map;
 using fourVector=LorentzVector<PtEtaPhiE4D<double>>;
 
-MpdFieldMap* magField{nullptr};
+//MpdFieldMap* magField{nullptr};
+MpdConstField *magField{nullptr};
 
 TChain* makeChain(string& filename, const char* treename) {
   cout << "Adding files to chain:" << endl;
@@ -322,6 +323,15 @@ void convertMPD(string inDst="", string fileOut="")
   int nEvents = chainRec->GetEntries();
 
   auto fhcalModPos = modulePos();
+
+  //magField = new MpdFieldMap("B-field_v2", "A");
+  magField = new MpdConstField();
+  magField->SetField(0., 0., 5.); // values are in kG:  1T = 10kG
+  magField->SetFieldRegion(-230, 230, -230, 230, -375, 375); // values in cm
+  cout << "FIELD at (0., 0., 0.) = (" << fMagField->GetBx(0., 0., 0.)
+       << "; " << fMagField->GetBy(0., 0., 0.)
+       << "; " << fMagField->GetBz(0., 0., 0.) << ")" << endl;
+
 
   auto dd = d
     .Define("evtId","MCEventHeader.fEventId")
