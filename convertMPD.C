@@ -1,3 +1,38 @@
+#include <iostream>
+#include <vector>
+#include <map>
+
+#include <TMath.h>
+#include <TChain.h>
+#include <TDatabasePDG.h>
+#include <TCollection.h>
+#include <TFileCollection.h>
+#include <ROOT/RDataFrame.hxx>
+#include <ROOT/RVec.hxx>
+#include <Math/GenVector/LorentzVector.h>
+#include <Math/GenVector/PtEtaPhiE4D.h>
+#include <Math/Vector3D.h>
+#include <Math/Vector4D.h>
+#include <TMatrixDSym.h>
+#include <TMatrixDUtilsfwd.h>
+
+#include "MpdConstField.h"
+#include "MpdFieldMap.h"
+#include "MpdEvent.h"
+#include "MpdTrack.h"
+#include "MpdTpcKalmanTrack.h"
+#include "MpdMCTrack.h"
+#include "MpdZdcDigi.h"
+
+#ifdef __CINT__
+
+#pragma link C++ nestedclass;
+#pragma link C++ nestedtypedef;
+
+#pragma link C++ class vector<vector<float>>+;
+
+#endif
+
 using namespace ROOT;
 using namespace ROOT::Math;
 using namespace ROOT::RDF;
@@ -187,6 +222,24 @@ try {
   throw e;
 }
 
+vector<vector<float> > covMatrix(RVec<MpdTpcKalmanTrack> kalman_tracks)
+{
+  vector<vector<float>> covariance_matrix;
+  for (auto &kalman_track:kalman_tracks) {
+    auto *cov = kalman_track.GetCovariance();
+    int ncols = cov->GetNcols();
+    // int nrows = cov->GetNrows();
+    // cout << "\t\tNcols = " << ncols << ", Nrows = " << nrows << endl;
+    covariance_matrix.emplace_back();
+    for (int i=0; i<ncols; ++i) {
+      for (int j=0; j<i; ++j) {
+        covariance_matrix.back().push_back( (float)TMatrixDRow(*cov, i)(j) );
+      }
+    }
+  }
+  return covariance_matrix;
+}
+
 RVec<int> recSimIndex(RVec<MpdTrack> recoTracks, const RVec<MpdMCTrack> simTracks)
 try {
   vector<int> newIndex;
@@ -364,12 +417,12 @@ void convertMPD(string inDst="", string fileOut="")
     .Define("recoPrimVtxY","MPDEvent.PrimaryVerticesY")
     .Define("recoPrimVtxZ","MPDEvent.PrimaryVerticesZ")
     .Define("recoPrimVtxChi2", "MPDEvent.PrimaryVerticesChi2")
-    .Define("recoVtxX","Vertex.fX")
-    .Define("recoVtxY","Vertex.fY")
-    .Define("recoVtxZ","Vertex.fZ")
-    .Define("recoVtxChi2", "Vertex.fChi2")
-    .Define("recoVtxNDF", "Vertex.fNDF")
-    .Define("recoVtxNtracks", "Vertex.fNTracks")
+    //.Define("recoVtxX","Vertex.fX")
+    //.Define("recoVtxY","Vertex.fY")
+    //.Define("recoVtxZ","Vertex.fZ")
+    //.Define("recoVtxChi2", "Vertex.fChi2")
+    //.Define("recoVtxNDF", "Vertex.fNDF")
+    //.Define("recoVtxNtracks", "Vertex.fNTracks")
     .Define("mcVtxX","MCEventHeader.fX")
     .Define("mcVtxY","MCEventHeader.fY")
     .Define("mcVtxZ","MCEventHeader.fZ")
@@ -386,7 +439,9 @@ void convertMPD(string inDst="", string fileOut="")
     .Define("recoGlobalCharge",recCharge,{"recoGlobalTracks"})
     .Define("recoGlobalDca", recDca, {"recoGlobalTracks"})
     .Define("recoGlobalTofMass2", "MPDEvent.fGlobalTracks.fTofMass2")
-    //.Define("recoGlobalParamFirst", trGlobalFirstParam, {"MPDEvent.fGlobalTracks.fFirstPointX", "MPDEvent.fGlobalTracks.fFirstPointY", "MPDEvent.fGlobalTracks.fFirstPointZ"})
+    .Define("recoGlobalParamFirst", trGlobalFirstParam, {"recoGlobalTracks"})
+    .Define("recoGlobalParamLast", trGlobalLastParam, {"recoGlobalTracks"})
+    .Define("recoKalmanCovMatrix", covMatrix, {"TpcKalmanTrack"})
     .Define("simMom", simMomentum, {"MCTrack"})
     .Define("simPosStart", simPosStart, {"MCTrack"})
     .Define("simMotherId", simMotherId, {"MCTrack"})
