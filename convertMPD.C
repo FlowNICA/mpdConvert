@@ -96,13 +96,23 @@ RVec<short> simCharge (const RVec<int> pdg)
   return ch;
 }
 
-vector<float> trackP(const RVec<float> &pt, const RVec<float> &theta)
+RVec<MpdTrack> getGlobalTracks(MpdEvent &event)
+{
+  vector<MpdTrack> tracks;
+  auto trArray = (TClonesArray*) event.GetGlobalTracks();
+  int Ntracks = trArray->GetEntriesFast();
+  for (int i=0; i<Ntracks; i++) {
+    auto track = (MpdTrack*) trArray->At(i);
+    tracks.push_back(*track);
+  }
+  return tracks;
+}
+
+vector<float> trackP(RVec<MpdTrack> tracks)
 try {
   vector<float> momenta;
-  for (int i=0; i<pt.size(); i++) {
-    float tt = TMath::Tan(theta.at(i));
-    float pz = tt ? TMath::Abs(pt.at(i)) / tt : 9999.;
-    momenta.push_back(sqrt(pt.at(i)*pt.at(i) + pz*pz));
+  for (auto &track:tracks) {
+    momenta.push_back(sqrt(track.GetPt()*track.GetPt()+track.GetPz()*track.GetPz()));
   }
   return momenta;
 } catch( const std::exception& e ){
@@ -110,11 +120,11 @@ try {
   throw e;
 }
 
-vector<fourVector> trackMomentum(const RVec<float> &pt, const RVec<float> &theta, const RVec<float> &phi)
+vector<fourVector> trackMomentum(RVec<MpdTrack> tracks)
 try {
   vector<fourVector> momenta;
-  for (int i=0; i<pt.size(); i++) {
-    momenta.push_back({abs(pt.at(i)), -TMath::Log(TMath::Tan(0.5 * theta.at(i))), phi.at(0), 0});
+  for (auto &track:tracks) {
+    momenta.push_back({track.GetPt(), track.GetEta(), track.GetPhi(), 0});
   }
   return momenta;
 } catch( const std::exception& e ){
@@ -122,11 +132,11 @@ try {
   throw e;
 }
 
-RVec<short> recCharge(const RVec<float> &pt)
+RVec<short> recCharge(RVec<MpdTrack> tracks)
 try {
   vector<short> charge;
-  for (auto trPt:pt) {
-    int q = (trPt > 0) ? -1. : 1.;
+  for (auto track:tracks) {
+    int q = track.GetCharge();
     charge.push_back(q);
   }
   return charge;
@@ -135,11 +145,11 @@ try {
   throw e;
 }
 
-vector<XYZVector> recDca(const RVec<float> &dcaX, const RVec<float> &dcaY, const RVec<float> &dcaZ)
+vector<XYZVector> recDca(RVec<MpdTrack> tracks)
 try {
   vector<XYZVector> dca;
-  for (int i=0; i<dcaX.size(); i++) {
-    dca.push_back({dcaX.at(i),dcaY.at(i),dcaZ.at(i)});
+  for (auto &track:tracks) {
+    dca.push_back({track.GetDCAX(), track.GetDCAY(), track.GetDCAZ()});
   }
   return dca;
 } catch( const std::exception& e ){
@@ -147,14 +157,14 @@ try {
   throw e;
 }
 
-vector<vector<float>> trGlobalParam(const RVec<float> &pointX, const RVec<float> &pointY, const RVec<float> &pointZ)
+vector<vector<float>> trGlobalFirstParam(RVec<MpdTrack> tracks)
 try {
   vector<vector<float>> parameters;
-  for (int i=0; i<pointX.size(); i++) {
+  for (auto &track:tracks) {
     parameters.emplace_back();
-    parameters.back().push_back( pointX.at(i) );
-    parameters.back().push_back( pointY.at(i) );
-    parameters.back().push_back( pointZ.at(i) );
+    parameters.back().push_back( track.GetFirstPointX() );
+    parameters.back().push_back( track.GetFirstPointY() );
+    parameters.back().push_back( track.GetFirstPointY() );
   }
   return parameters;
 } catch( const std::exception& e ){
@@ -162,7 +172,22 @@ try {
   throw e;
 }
 
-RVec<int> recSimIndex(const RVec<int> &recId, const RVec<MpdMCTrack> simTracks)
+vector<vector<float>> trGlobalLastParam(RVec<MpdTrack> tracks)
+try {
+  vector<vector<float>> parameters;
+  for (auto &track:tracks) {
+    parameters.emplace_back();
+    parameters.back().push_back( track.GetLastPointX() );
+    parameters.back().push_back( track.GetLastPointY() );
+    parameters.back().push_back( track.GetLastPointY() );
+  }
+  return parameters;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<int> recSimIndex(RVec<MpdTrack> recoTracks, const RVec<MpdMCTrack> simTracks)
 try {
   vector<int> newIndex;
   int shift=0;
@@ -177,8 +202,8 @@ try {
       newIndex.push_back(i-shift);
   }
   vector<int> simIndex;
-  for (auto trId:recId) {
-    int oldIndex=trId;
+  for (auto track:recoTracks) {
+    int oldIndex=track.GetID();
     if (oldIndex<0 || oldIndex>=nSimTracks)
       simIndex.push_back(-1);
     else
@@ -328,9 +353,9 @@ void convertMPD(string inDst="", string fileOut="")
   magField = new MpdConstField();
   magField->SetField(0., 0., 5.); // values are in kG:  1T = 10kG
   magField->SetFieldRegion(-230, 230, -230, 230, -375, 375); // values in cm
-  cout << "FIELD at (0., 0., 0.) = (" << fMagField->GetBx(0., 0., 0.)
-       << "; " << fMagField->GetBy(0., 0., 0.)
-       << "; " << fMagField->GetBz(0., 0., 0.) << ")" << endl;
+  cout << "FIELD at (0., 0., 0.) = (" << magField->GetBx(0., 0., 0.)
+       << "; " << magField->GetBy(0., 0., 0.)
+       << "; " << magField->GetBz(0., 0., 0.) << ")" << endl;
 
 
   auto dd = d
@@ -350,24 +375,25 @@ void convertMPD(string inDst="", string fileOut="")
     .Define("mcVtxZ","MCEventHeader.fZ")
     .Define("mcB", "MCEventHeader.fB")
     .Define("mcRP", "MCEventHeader.fRotZ")
-    .Define("recoGlobalMom", trackMomentum, {"MPDEvent.fGlobalTracks.fPt", "MPDEvent.fGlobalTracks.fTheta", "MPDEvent.fGlobalTracks.fPhi"})
+    .Define("recoGlobalTracks", getGlobalTracks, {"MPDEvent."})
+    .Define("recoGlobalMom1", trackMomentum, {"recoGlobalTracks"})
     .Define("recoGlobalNhits", "MPDEvent.fGlobalTracks.fNofHits")
     .Define("recoGlobalNhitsPoss", "MPDEvent.fGlobalTracks.fNofHitsPossTpc")
     .Define("recoGlobalNhitsFit", "MPDEvent.fGlobalTracks.fNofHitsFitTpc")
     .Define("recoGlobalChi2", "MPDEvent.fGlobalTracks.fChi2")
-    .Define("recoGlobalP", trackP, {"MPDEvent.fGlobalTracks.fPt", "MPDEvent.fGlobalTracks.fTheta"})
+    .Define("recoGlobalP1", trackP, {"recoGlobalTracks"})
     .Define("recoGlobalTofFlag", "MPDEvent.fGlobalTracks.fTofFlag")
-    .Define("recoGlobalCharge",recCharge,{"MPDEvent.fGlobalTracks.fPt"})
-    .Define("recoGlobalDca", recDca, {"MPDEvent.fGlobalTracks.fDCAX", "MPDEvent.fGlobalTracks.fDCAY", "MPDEvent.fGlobalTracks.fDCAZ"})
+    .Define("recoGlobalCharge",recCharge,{"recoGlobalTracks"})
+    .Define("recoGlobalDca", recDca, {"recoGlobalTracks"})
     .Define("recoGlobalTofMass2", "MPDEvent.fGlobalTracks.fTofMass2")
-    //.Define("recoGlobalParamFirst", trGlobalParam, {"MPDEvent.fGlobalTracks.fFirstPointX", "MPDEvent.fGlobalTracks.fFirstPointY", "MPDEvent.fGlobalTracks.fFirstPointZ"})
+    //.Define("recoGlobalParamFirst", trGlobalFirstParam, {"MPDEvent.fGlobalTracks.fFirstPointX", "MPDEvent.fGlobalTracks.fFirstPointY", "MPDEvent.fGlobalTracks.fFirstPointZ"})
     .Define("simMom", simMomentum, {"MCTrack"})
     .Define("simPosStart", simPosStart, {"MCTrack"})
     .Define("simMotherId", simMotherId, {"MCTrack"})
     .Define("simPdg", simPdg, {"MCTrack"})
     .Define("simCharge", simCharge, {"simPdg"})
     .Define("simHasHitFHCal", hasHitFhcal, {"MCTrack"})
-    .Define("recoGlobalSimIndex", recSimIndex, {"MPDEvent.fGlobalTracks.fID", "MCTrack"})
+    .Define("recoGlobalSimIndex", recSimIndex, {"recoGlobalTracks", "MCTrack"})
     .Define("recoGlobalSimPdg", trSimPdg, {"recoGlobalSimIndex", "simPdg"})
     .Define("recoGlobalSimMotherId", trSimMotherId, {"recoGlobalSimIndex", "simMotherId"})
     .Define("fhcalModPos", [fhcalModPos](){return fhcalModPos; })
@@ -378,7 +404,7 @@ void convertMPD(string inDst="", string fileOut="")
   cout << endl;
 
   vector<string> definedNames;
-  vector<string> toExclude={""};
+  vector<string> toExclude={"recoGlobalTracks"};
   for (auto& definedName:dd.GetDefinedColumnNames())
   {
     bool exclude=false;
