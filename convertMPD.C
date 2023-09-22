@@ -19,10 +19,17 @@
 #include "MpdConstField.h"
 #include "MpdFieldMap.h"
 #include "MpdEvent.h"
+#include "MpdVertex.h"
 #include "MpdTrack.h"
 #include "MpdTpcKalmanTrack.h"
 #include "MpdMCTrack.h"
 #include "MpdZdcDigi.h"
+
+using namespace ROOT;
+using namespace ROOT::Math;
+using namespace ROOT::RDF;
+using ROOT::VecOps::Map;
+using fourVector=LorentzVector<PtEtaPhiE4D<double>>;
 
 #ifdef __CINT__
 
@@ -32,12 +39,6 @@
 #pragma link C++ class vector<vector<float>>+;
 
 #endif
-
-using namespace ROOT;
-using namespace ROOT::Math;
-using namespace ROOT::RDF;
-using ROOT::VecOps::Map;
-using fourVector=LorentzVector<PtEtaPhiE4D<double>>;
 
 //MpdFieldMap* magField{nullptr};
 MpdConstField *magField{nullptr};
@@ -76,7 +77,7 @@ int getCharge(int pdg)
     return pdg/10000%1000;
 }
 
-vector<fourVector> simMomentum(RVec<MpdMCTrack> tracks)
+vector<fourVector> simMomentum(RVec<MpdMCTrack> &tracks)
 {
   vector<fourVector> momenta;
   for (auto& track:tracks) {
@@ -90,7 +91,7 @@ vector<fourVector> simMomentum(RVec<MpdMCTrack> tracks)
   return momenta;
 }
 
-vector<XYZTVector> simPosStart(const RVec<MpdMCTrack> tracks)
+vector<XYZTVector> simPosStart(const RVec<MpdMCTrack> &tracks)
 {
   vector<XYZTVector> pos;
   for (auto& track:tracks) {
@@ -101,7 +102,7 @@ vector<XYZTVector> simPosStart(const RVec<MpdMCTrack> tracks)
   return pos;
 }
 
-RVec<int> simMotherId(const RVec<MpdMCTrack> tracks)
+RVec<int> simMotherId(const RVec<MpdMCTrack> &tracks)
 {
   vector<int> mothId;
   for (auto& track:tracks) {
@@ -112,7 +113,7 @@ RVec<int> simMotherId(const RVec<MpdMCTrack> tracks)
   return mothId;
 }
 
-RVec<int> simPdg(const RVec<MpdMCTrack> tracks)
+RVec<int> simPdg(const RVec<MpdMCTrack> &tracks)
 {
   vector<int> pdg;
   for (auto& track:tracks) {
@@ -143,7 +144,43 @@ RVec<MpdTrack> getGlobalTracks(MpdEvent &event)
   return tracks;
 }
 
-vector<float> trackP(RVec<MpdTrack> tracks)
+RVec<int> recNhits(const RVec<MpdTrack> &tracks)
+try {
+  vector<int> nhits;
+  for (auto &track:tracks) {
+    int nhit = track.GetNofHits();
+    nhits.push_back(nhit);
+  }
+  return nhits;
+} catch(const std::exception& e ){
+  std::cout << __func__ << std::endl;
+}
+
+RVec<int> recNhitsFit(const RVec<MpdTrack> &tracks)
+try {
+  vector<int> nhits;
+  for (auto &track:tracks) {
+    int nhit = track.GetNofHitsFitTpc();
+    nhits.push_back(nhit);
+  }
+  return nhits;
+} catch(const std::exception& e ){
+  std::cout << __func__ << std::endl;
+}
+
+RVec<int> recNhitsPoss(const RVec<MpdTrack> &tracks)
+try {
+  vector<int> nhits;
+  for (auto &track:tracks) {
+    int nhit = track.GetNofHitsPossTpc();
+    nhits.push_back(nhit);
+  }
+  return nhits;
+} catch(const std::exception& e ){
+  std::cout << __func__ << std::endl;
+}
+
+vector<float> trackP(const RVec<MpdTrack> &tracks)
 try {
   vector<float> momenta;
   for (auto &track:tracks) {
@@ -155,7 +192,7 @@ try {
   throw e;
 }
 
-vector<fourVector> trackMomentum(RVec<MpdTrack> tracks)
+vector<fourVector> trackMomentum(const RVec<MpdTrack> &tracks)
 try {
   vector<fourVector> momenta;
   for (auto &track:tracks) {
@@ -167,7 +204,7 @@ try {
   throw e;
 }
 
-RVec<short> recCharge(RVec<MpdTrack> tracks)
+RVec<short> recCharge(const RVec<MpdTrack> &tracks)
 try {
   vector<short> charge;
   for (auto track:tracks) {
@@ -180,7 +217,7 @@ try {
   throw e;
 }
 
-vector<XYZVector> recDca(RVec<MpdTrack> tracks)
+vector<XYZVector> recDca(const RVec<MpdTrack> &tracks)
 try {
   vector<XYZVector> dca;
   for (auto &track:tracks) {
@@ -192,7 +229,7 @@ try {
   throw e;
 }
 
-vector<vector<float>> trGlobalFirstParam(RVec<MpdTrack> tracks)
+vector<vector<float>> trGlobalFirstParam(const RVec<MpdTrack> &tracks)
 try {
   vector<vector<float>> parameters;
   for (auto &track:tracks) {
@@ -207,7 +244,7 @@ try {
   throw e;
 }
 
-vector<vector<float>> trGlobalLastParam(RVec<MpdTrack> tracks)
+vector<vector<float>> trGlobalLastParam(const RVec<MpdTrack> &tracks)
 try {
   vector<vector<float>> parameters;
   for (auto &track:tracks) {
@@ -222,7 +259,7 @@ try {
   throw e;
 }
 
-vector<vector<float> > covMatrix(RVec<MpdTpcKalmanTrack> kalman_tracks)
+vector<vector<float> > covMatrix(const RVec<MpdTpcKalmanTrack> &kalman_tracks)
 {
   vector<vector<float>> covariance_matrix;
   for (auto &kalman_track:kalman_tracks) {
@@ -240,7 +277,7 @@ vector<vector<float> > covMatrix(RVec<MpdTpcKalmanTrack> kalman_tracks)
   return covariance_matrix;
 }
 
-RVec<int> recSimIndex(RVec<MpdTrack> recoTracks, const RVec<MpdMCTrack> simTracks)
+RVec<int> recSimIndex(const RVec<MpdTrack> &recoTracks, const RVec<MpdMCTrack> simTracks)
 try {
   vector<int> newIndex;
   int shift=0;
@@ -268,7 +305,7 @@ try {
   throw e;
 }
 
-RVec<int> trSimPdg(const RVec<int> sim_index, const RVec<int> sim_pdg)
+RVec<int> trSimPdg(const RVec<int> &sim_index, const RVec<int> &sim_pdg)
 try {
   std::vector<int> pdg;
   for( auto idx : sim_index ) {
@@ -288,7 +325,7 @@ try {
   throw e;
 }
 
-RVec<int> trSimMotherId(const RVec<int> sim_index, const RVec<int> sim_motherId)
+RVec<int> trSimMotherId(const RVec<int> &sim_index, const RVec<int> &sim_motherId)
 try {
   std::vector<int> motherId;
   for( auto idx : sim_index ) {
@@ -355,7 +392,7 @@ try {
   throw e;
 }
 
-RVec<float> fhcalModE(const RVec<MpdZdcDigi> fhcalHits)
+RVec<float> fhcalModE(const RVec<MpdZdcDigi> &fhcalHits)
 try {
   const int nModules = 90;
   vector<float> fhcalModEnergy(nModules, 0.);
@@ -371,7 +408,7 @@ try {
   throw e;
 }
 
-RVec<int> moduleId (const vector<XYZVector> modulePos)
+RVec<int> moduleId (const vector<XYZVector> &modulePos)
 try {
   vector <int> moduleIds;
   for (int i=0;i<modulePos.size();i++)
@@ -382,12 +419,37 @@ try {
   throw e;
 }
 
-RVec<bool> hasHitFhcal (const RVec<MpdMCTrack> particles)
+RVec<bool> hasHitFhcal (const RVec<MpdMCTrack> &particles)
 {
   vector<bool> hasHit;
   for(auto &part:particles)
     hasHit.push_back(part.GetNPoints(kZDC)>0);
   return hasHit;
+}
+
+XYZVector vtxPos(const MpdVertex &vertex)
+{
+  return {vertex.GetX(), vertex.GetY(), vertex.GetZ()};
+}
+
+double vtxChi2(const MpdVertex &vertex)
+{
+  return vertex.GetChi2();
+}
+
+int vtxNdf(const MpdVertex &vertex)
+{
+  return vertex.GetNDF();
+}
+
+double vtxChi2Ndf(const MpdVertex &vertex)
+{
+  return (double)(vertex.GetChi2())/(double)(vertex.GetNDF());
+}
+
+int vtxNtracks(const MpdVertex &vertex)
+{
+  return vertex.GetNTracks();
 }
 
 void convertMPD(string inDst="", string fileOut="")
@@ -417,24 +479,23 @@ void convertMPD(string inDst="", string fileOut="")
     .Define("recoPrimVtxY","MPDEvent.PrimaryVerticesY")
     .Define("recoPrimVtxZ","MPDEvent.PrimaryVerticesZ")
     .Define("recoPrimVtxChi2", "MPDEvent.PrimaryVerticesChi2")
-    //.Define("recoVtxX","Vertex.fX")
-    //.Define("recoVtxY","Vertex.fY")
-    //.Define("recoVtxZ","Vertex.fZ")
-    //.Define("recoVtxChi2", "Vertex.fChi2")
-    //.Define("recoVtxNDF", "Vertex.fNDF")
-    //.Define("recoVtxNtracks", "Vertex.fNTracks")
+    //.Define("recoVtxPos", vtxPos, {"Vertex"})
+    //.Define("recoVtxChi2", vtxChi2, {"Vertex"})
+    //.Define("recoVtxNDF", vtxNdf, {"Vertex"})
+    //.Define("recoVtxChi2NDF", vtxChi2Ndf, {"Vertex"})
+    //.Define("recoVtxNtracks", vtxNtracks, {"Vertex"})
     .Define("mcVtxX","MCEventHeader.fX")
     .Define("mcVtxY","MCEventHeader.fY")
     .Define("mcVtxZ","MCEventHeader.fZ")
     .Define("mcB", "MCEventHeader.fB")
     .Define("mcRP", "MCEventHeader.fRotZ")
     .Define("recoGlobalTracks", getGlobalTracks, {"MPDEvent."})
-    .Define("recoGlobalMom1", trackMomentum, {"recoGlobalTracks"})
-    .Define("recoGlobalNhits", "MPDEvent.fGlobalTracks.fNofHits")
-    .Define("recoGlobalNhitsPoss", "MPDEvent.fGlobalTracks.fNofHitsPossTpc")
-    .Define("recoGlobalNhitsFit", "MPDEvent.fGlobalTracks.fNofHitsFitTpc")
+    .Define("recoGlobalMom", trackMomentum, {"recoGlobalTracks"})
+    .Define("recoGlobalNhits", recNhits, {"recoGlobalTracks"})
+    .Define("recoGlobalNhitsFit", recNhitsFit, {"recoGlobalTracks"})
+    .Define("recoGlobalNhitsPoss", recNhitsPoss, {"recoGlobalTracks"})
     .Define("recoGlobalChi2", "MPDEvent.fGlobalTracks.fChi2")
-    .Define("recoGlobalP1", trackP, {"recoGlobalTracks"})
+    .Define("recoGlobalP", trackP, {"recoGlobalTracks"})
     .Define("recoGlobalTofFlag", "MPDEvent.fGlobalTracks.fTofFlag")
     .Define("recoGlobalCharge",recCharge,{"recoGlobalTracks"})
     .Define("recoGlobalDca", recDca, {"recoGlobalTracks"})
@@ -442,6 +503,9 @@ void convertMPD(string inDst="", string fileOut="")
     .Define("recoGlobalParamFirst", trGlobalFirstParam, {"recoGlobalTracks"})
     .Define("recoGlobalParamLast", trGlobalLastParam, {"recoGlobalTracks"})
     .Define("recoKalmanCovMatrix", covMatrix, {"TpcKalmanTrack"})
+    .Define("recoKalmanNofWrong", "TpcKalmanTrack.fNofWrong")
+    .Define("recoKalmanLength", "TpcKalmanTrack.fLength")
+    .Define("recoKalmanCh2Ndf", "TpcKalmanTrack.fChi2")
     .Define("simMom", simMomentum, {"MCTrack"})
     .Define("simPosStart", simPosStart, {"MCTrack"})
     .Define("simMotherId", simMotherId, {"MCTrack"})
