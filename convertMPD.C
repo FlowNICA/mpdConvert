@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <algorithm>
 
 #include <TMath.h>
 #include <TChain.h>
@@ -56,8 +57,22 @@ TChain* makeChain(string& filename, const char* treename) {
   return chain;
 }
 
-bool isGoodSimTrack(const MpdMCTrack &track)
+RVec<MpdMCTrack> getAssocSimTracks(const RVec<MpdTrack> &mpdtracks, const RVec<MpdMCTrack> &mctracks)
 {
+  // Returns vector of mc tracks that have assotiation with mpdtrack
+  vector<MpdMCTrack> goodtracks;
+  for (auto &track:mpdtracks) {
+    auto mctrack = mctracks.at(track.GetID());
+    goodtracks.push_back(mctrack);
+  }
+  return goodtracks;
+}
+
+bool isGoodSimTrack(const MpdMCTrack &track, const RVec<MpdMCTrack> &assocMcTracks)
+{
+  //bool isInReco = (std::find(assocMcTracks.begin(), assocMcTracks.end(), track) == assocMcTracks.end());
+  //if(isInReco && track.GetMotherId() != -1) return false;
+  if (track.GetNPoints(kTPC)<=0) return false; // only mc tracks that have at least 1 point in TPC!
   return true;
 }
 
@@ -77,11 +92,11 @@ int getCharge(int pdg)
     return pdg/10000%1000;
 }
 
-vector<fourVector> simMomentum(RVec<MpdMCTrack> &tracks)
+vector<fourVector> simMomentum(RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks)
 {
   vector<fourVector> momenta;
   for (auto& track:tracks) {
-    if (!isGoodSimTrack(track))
+    if (!isGoodSimTrack(track, assocMcTracks))
       continue;
     TVector3 mom;
     track.GetMomentum(mom);
@@ -91,37 +106,48 @@ vector<fourVector> simMomentum(RVec<MpdMCTrack> &tracks)
   return momenta;
 }
 
-vector<XYZTVector> simPosStart(const RVec<MpdMCTrack> &tracks)
+vector<XYZTVector> simPosStart(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks)
 {
   vector<XYZTVector> pos;
   for (auto& track:tracks) {
-    if (!isGoodSimTrack(track))
+    if (!isGoodSimTrack(track, assocMcTracks))
       continue;
     pos.push_back({track.GetStartX(),track.GetStartY(),track.GetStartZ(),track.GetStartT()});
   }
   return pos;
 }
 
-RVec<int> simMotherId(const RVec<MpdMCTrack> &tracks)
+RVec<int> simMotherId(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks)
 {
   vector<int> mothId;
   for (auto& track:tracks) {
-    if (!isGoodSimTrack(track))
+    if (!isGoodSimTrack(track, assocMcTracks))
       continue;
     mothId.push_back(track.GetMotherId());
   }
   return mothId;
 }
 
-RVec<int> simPdg(const RVec<MpdMCTrack> &tracks)
+RVec<int> simPdg(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks)
 {
   vector<int> pdg;
   for (auto& track:tracks) {
-    if (!isGoodSimTrack(track))
+    if (!isGoodSimTrack(track, assocMcTracks))
       continue;
     pdg.push_back(track.GetPdgCode());
   }
   return pdg;
+}
+
+RVec<bool> hasHitFhcal (const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks)
+{
+  vector<bool> hasHit;
+  for(auto &track:tracks) {
+    if (!isGoodSimTrack(track, assocMcTracks))
+      continue;
+    hasHit.push_back(track.GetNPoints(kZDC)>0);
+  }
+  return hasHit;
 }
 
 RVec<short> simCharge (const RVec<int> pdg)
@@ -154,6 +180,7 @@ try {
   return nhits;
 } catch(const std::exception& e ){
   std::cout << __func__ << std::endl;
+  throw e;
 }
 
 RVec<int> recNhitsFit(const RVec<MpdTrack> &tracks)
@@ -166,6 +193,7 @@ try {
   return nhits;
 } catch(const std::exception& e ){
   std::cout << __func__ << std::endl;
+  throw e;
 }
 
 RVec<int> recNhitsPoss(const RVec<MpdTrack> &tracks)
@@ -178,6 +206,32 @@ try {
   return nhits;
 } catch(const std::exception& e ){
   std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<bool> recHasTofHit(const RVec<MpdTrack> &tracks)
+try {
+  vector<bool> tofhits;
+  for (auto &track:tracks) {
+    bool hit = (track.GetTofFlag() == 2 || track.GetTofFlag() == 6);
+    tofhits.push_back(hit);
+  }
+  return tofhits;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<float> recTofMass2(const RVec<MpdTrack> &tracks)
+try {
+  vector<float> mass2;
+  for (auto &track:tracks) {
+    mass2.push_back(track.GetTofMass2());
+  }
+  return mass2;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
 }
 
 vector<float> trackP(const RVec<MpdTrack> &tracks)
@@ -212,6 +266,18 @@ try {
     charge.push_back(q);
   }
   return charge;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<float> recChi2(const RVec<MpdTrack> &tracks)
+try {
+  vector<float> chi2;
+  for (auto &track:tracks) {
+    chi2.push_back(track.GetChi2());
+  }
+  return chi2;
 } catch( const std::exception& e ){
   std::cout << __func__ << std::endl;
   throw e;
@@ -260,7 +326,7 @@ try {
 }
 
 vector<vector<float> > covMatrix(const RVec<MpdTpcKalmanTrack> &kalman_tracks)
-{
+try {
   vector<vector<float>> covariance_matrix;
   for (auto &kalman_track:kalman_tracks) {
     auto *cov = kalman_track.GetCovariance();
@@ -275,15 +341,54 @@ vector<vector<float> > covMatrix(const RVec<MpdTpcKalmanTrack> &kalman_tracks)
     }
   }
   return covariance_matrix;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
 }
 
-RVec<int> recSimIndex(const RVec<MpdTrack> &recoTracks, const RVec<MpdMCTrack> simTracks)
+RVec<int> kalmanNwrong(const RVec<MpdTpcKalmanTrack> &kalman_tracks)
+try {
+  vector<int> Nwrong;
+  for (auto &track:kalman_tracks) {
+    Nwrong.push_back(track.GetNofWrong());
+  }
+  return Nwrong;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<float> kalmanLength(const RVec<MpdTpcKalmanTrack> &kalman_tracks)
+try {
+  vector<float> length;
+  for (auto &track:kalman_tracks) {
+    length.push_back(track.GetLength());
+  }
+  return length;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<float> kalmanChi2(const RVec<MpdTpcKalmanTrack> &kalman_tracks)
+try {
+  vector<float> chi2;
+  for (auto &track:kalman_tracks) {
+    chi2.push_back(track.GetChi2());
+  }
+  return chi2;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<int> recSimIndex(const RVec<MpdTrack> &recoTracks, const RVec<MpdMCTrack> simTracks, const RVec<MpdMCTrack> &assocMcTracks)
 try {
   vector<int> newIndex;
   int shift=0;
   int nSimTracks = simTracks.size();
   for (int i=0;i<nSimTracks;i++) {
-    if (!isGoodSimTrack(simTracks.at(i)))
+    if (!isGoodSimTrack(simTracks.at(i), assocMcTracks))
     {
       shift++;
       newIndex.push_back(-1);
@@ -313,7 +418,7 @@ try {
       pdg.push_back(-1);
       continue;
     }
-    if( idx > sim_pdg.size() ) {
+    if( idx > (int)sim_pdg.size() ) {
       pdg.push_back(-1);
       continue;
     }
@@ -333,7 +438,7 @@ try {
       motherId.push_back(-1);
       continue;
     }
-    if( idx > sim_motherId.size() ) {
+    if( idx > (int)sim_motherId.size() ) {
       motherId.push_back(-1);
       continue;
     }
@@ -411,20 +516,12 @@ try {
 RVec<int> moduleId (const vector<XYZVector> &modulePos)
 try {
   vector <int> moduleIds;
-  for (int i=0;i<modulePos.size();i++)
+  for (int i=0;i<(int)modulePos.size();i++)
     moduleIds.push_back(i+1);
   return moduleIds;
 } catch( const std::exception& e ){
   std::cout << __func__ << std::endl;
   throw e;
-}
-
-RVec<bool> hasHitFhcal (const RVec<MpdMCTrack> &particles)
-{
-  vector<bool> hasHit;
-  for(auto &part:particles)
-    hasHit.push_back(part.GetNPoints(kZDC)>0);
-  return hasHit;
 }
 
 XYZVector vtxPos(const MpdVertex &vertex)
@@ -468,62 +565,66 @@ void convertMPD(string inDst="", string fileOut="")
   magField = new MpdConstField();
   magField->SetField(0., 0., 5.); // values are in kG:  1T = 10kG
   magField->SetFieldRegion(-230, 230, -230, 230, -375, 375); // values in cm
-  cout << "FIELD at (0., 0., 0.) = (" << magField->GetBx(0., 0., 0.)
+  cout << "FIELD at (0., 0., 0.) cm    = (" << magField->GetBx(0., 0., 0.)
        << "; " << magField->GetBy(0., 0., 0.)
-       << "; " << magField->GetBz(0., 0., 0.) << ")" << endl;
+       << "; " << magField->GetBz(0., 0., 0.) << ") kG" << endl;
+  cout << "FIELD at (0., 0., -115.) cm = (" << magField->GetBx(0., 0., -115.)
+       << "; " << magField->GetBy(0., 0., -115.)
+       << "; " << magField->GetBz(0., 0., -115.) << ") kG" << endl;
 
 
   auto dd = d
-    .Define("evtId","MCEventHeader.fEventId")
-    .Define("recoPrimVtxX","MPDEvent.PrimaryVerticesX")
-    .Define("recoPrimVtxY","MPDEvent.PrimaryVerticesY")
-    .Define("recoPrimVtxZ","MPDEvent.PrimaryVerticesZ")
-    .Define("recoPrimVtxChi2", "MPDEvent.PrimaryVerticesChi2")
-    //.Define("recoVtxPos", vtxPos, {"Vertex"})
-    //.Define("recoVtxChi2", vtxChi2, {"Vertex"})
-    //.Define("recoVtxNDF", vtxNdf, {"Vertex"})
-    //.Define("recoVtxChi2NDF", vtxChi2Ndf, {"Vertex"})
-    //.Define("recoVtxNtracks", vtxNtracks, {"Vertex"})
-    .Define("mcVtxX","MCEventHeader.fX")
-    .Define("mcVtxY","MCEventHeader.fY")
-    .Define("mcVtxZ","MCEventHeader.fZ")
-    .Define("mcB", "MCEventHeader.fB")
-    .Define("mcRP", "MCEventHeader.fRotZ")
+    // .Define("evtId", [](int x){ return x; }, {"MCEventHeader.fEventId"})
+    .Define("recoPrimVtxX", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesX"})
+    .Define("recoPrimVtxY", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesY"})
+    .Define("recoPrimVtxZ", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesZ"})
+    .Define("recoPrimVtxChi2", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesChi2"})
+    // .Define("recoVtxPos", vtxPos, {"Vertex"})
+    // .Define("recoVtxChi2", vtxChi2, {"Vertex"})
+    // .Define("recoVtxNDF", vtxNdf, {"Vertex"})
+    // .Define("recoVtxChi2NDF", vtxChi2Ndf, {"Vertex"})
+    // .Define("recoVtxNtracks", vtxNtracks, {"Vertex"})
+    .Define("mcVtxX", [](double x){ return x; }, {"MCEventHeader.fX"})
+    .Define("mcVtxY", [](double x){ return x; }, {"MCEventHeader.fY"})
+    .Define("mcVtxZ", [](double x){ return x; }, {"MCEventHeader.fZ"})
+    .Define("mcB", [](double x){ return x; }, { "MCEventHeader.fB"})
+    .Define("mcRP", [](double x){ return x; }, { "MCEventHeader.fRotZ"})
     .Define("recoGlobalTracks", getGlobalTracks, {"MPDEvent."})
     .Define("recoGlobalMom", trackMomentum, {"recoGlobalTracks"})
     .Define("recoGlobalNhits", recNhits, {"recoGlobalTracks"})
     .Define("recoGlobalNhitsFit", recNhitsFit, {"recoGlobalTracks"})
     .Define("recoGlobalNhitsPoss", recNhitsPoss, {"recoGlobalTracks"})
-    .Define("recoGlobalChi2", "MPDEvent.fGlobalTracks.fChi2")
-    .Define("recoGlobalP", trackP, {"recoGlobalTracks"})
-    .Define("recoGlobalTofFlag", "MPDEvent.fGlobalTracks.fTofFlag")
+    .Define("recoGlobalChi2",  recChi2, {"recoGlobalTracks"})
+    // .Define("recoGlobalP", trackP, {"recoGlobalTracks"})
+    .Define("recoGlobalTofFlag", recHasTofHit, {"recoGlobalTracks"})
     .Define("recoGlobalCharge",recCharge,{"recoGlobalTracks"})
     .Define("recoGlobalDca", recDca, {"recoGlobalTracks"})
-    .Define("recoGlobalTofMass2", "MPDEvent.fGlobalTracks.fTofMass2")
+    .Define("recoGlobalTofMass2", recTofMass2, {"recoGlobalTracks"})
     .Define("recoGlobalParamFirst", trGlobalFirstParam, {"recoGlobalTracks"})
     .Define("recoGlobalParamLast", trGlobalLastParam, {"recoGlobalTracks"})
     .Define("recoKalmanCovMatrix", covMatrix, {"TpcKalmanTrack"})
-    .Define("recoKalmanNofWrong", "TpcKalmanTrack.fNofWrong")
-    .Define("recoKalmanLength", "TpcKalmanTrack.fLength")
-    .Define("recoKalmanCh2Ndf", "TpcKalmanTrack.fChi2")
-    .Define("simMom", simMomentum, {"MCTrack"})
-    .Define("simPosStart", simPosStart, {"MCTrack"})
-    .Define("simMotherId", simMotherId, {"MCTrack"})
-    .Define("simPdg", simPdg, {"MCTrack"})
+    .Define("recoKalmanNofWrong", kalmanNwrong, {"TpcKalmanTrack"})
+    .Define("recoKalmanLength", kalmanLength, {"TpcKalmanTrack"})
+    .Define("recoKalmanCh2Ndf", kalmanChi2, {"TpcKalmanTrack"})
+    .Define("simAssocTracks", getAssocSimTracks, {"recoGlobalTracks", "MCTrack"})
+    .Define("simMom", simMomentum, {"MCTrack", "simAssocTracks"})
+    .Define("simPosStart", simPosStart, {"MCTrack", "simAssocTracks"})
+    .Define("simMotherId", simMotherId, {"MCTrack", "simAssocTracks"})
+    .Define("simPdg", simPdg, {"MCTrack", "simAssocTracks"})
     .Define("simCharge", simCharge, {"simPdg"})
-    .Define("simHasHitFHCal", hasHitFhcal, {"MCTrack"})
-    .Define("recoGlobalSimIndex", recSimIndex, {"recoGlobalTracks", "MCTrack"})
+    .Define("simHasHitFHCal", hasHitFhcal, {"MCTrack", "simAssocTracks"})
+    .Define("recoGlobalSimIndex", recSimIndex, {"recoGlobalTracks", "MCTrack", "simAssocTracks"})
     .Define("recoGlobalSimPdg", trSimPdg, {"recoGlobalSimIndex", "simPdg"})
     .Define("recoGlobalSimMotherId", trSimMotherId, {"recoGlobalSimIndex", "simMotherId"})
     .Define("fhcalModPos", [fhcalModPos](){return fhcalModPos; })
     .Define("fhcalModId", moduleId, {"fhcalModPos"})
     .Define("fhcalModE",fhcalModE,{"ZdcDigi"})
   ;
-  dd.Foreach([](uint evtId){if (evtId % 100 == 0) cout << "\n" << evtId;}, {"evtId"}); // progress display 
+  dd.Foreach([](ULong64_t evtId){if (evtId % 100 == 0) cout << "\r" << evtId;}, {"rdfentry_"}); // progress display 
   cout << endl;
 
   vector<string> definedNames;
-  vector<string> toExclude={"recoGlobalTracks"};
+  vector<string> toExclude={"recoGlobalTracks", "simAssocTracks"};
   for (auto& definedName:dd.GetDefinedColumnNames())
   {
     bool exclude=false;
