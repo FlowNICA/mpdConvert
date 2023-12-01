@@ -412,51 +412,119 @@ try {
   throw e;
 }
 
-XYZVector GetFHCalPos(int iModule)
-{
-  const int Nmodules = 45;
-  int xAxisSwitch = (iModule < Nmodules) ? 1 : -1;
-  int module = (iModule < Nmodules) ? iModule : iModule - Nmodules;
-  float x, y, z;
-  z = (iModule < Nmodules) ? 320. : -320.;
-  if (module >= 0 && module <= 4)
-  {
-    y = 45.;
-    x = -1. * (module - 2) * 15.;
-  }
-  else if ((module >= 5) && (module <= 39))
-  {
-    y = (3 - (module + 2) / 7) * 15.;
-    x = (3 - (module + 2) % 7) * 15.;
-  }
-  else if ((module >= 40) && (module <= 44))
-  {
-    y = -45.;
-    x = -1. * (module - 42) * 15.;
-  }
-  XYZVector vModPos(x * xAxisSwitch, y, z);
-
-  return vModPos;
-}
-
-vector<XYZVector> modulePos ()
+RVec<int> moduleId (const vector<XYZVector> &modulePos)
 try {
   bool verbose = false;
-  const int nModules = 90;
-  vector<XYZVector> modulePosVector(nModules,{0.,0.,0.});
-  for (int i=0; i<nModules; i++) {
-    modulePosVector.at(i) = GetFHCalPos(i);
+  vector <int> moduleIds;
+  for (int i=0;i<(int)modulePos.size();i++)
+    moduleIds.push_back(i+1);
+  if (verbose) {
+    for(int i=0;i<(int)moduleIds.size();i++)
+      printf("\t%d: (id = %d)\n", i, moduleIds.at(i));
   }
-  if (verbose)
-  {
-    printf("\t%d module positions:\n", nModules);
-    for(int i=0;i<nModules;i++)
-      printf("\t%d: (%f, %f, %f)\n", i, modulePosVector.at(i).x(), modulePosVector.at(i).y(), modulePosVector.at(i).z());
-  }
-  return modulePosVector;
+  return moduleIds;
 } catch( const std::exception& e ){
   std::cout << __func__ << std::endl;
   throw e;
+}
+
+vector<XYZVector> modulePos (const char *geoFile, const char *detectorTag)
+{
+  bool verbose = false;
+  map <int,XYZVector> modulePosMap;
+  printf("Reading %s geometry from geometry file\n", detectorTag);
+  TFile *fiGeo = new TFile(geoFile, "read");
+  TGeoVolumeAssembly *tgva = (TGeoVolumeAssembly *) fiGeo->Get("TOP");
+  if (!tgva)
+    throw runtime_error(Form("ERROR: No TGeoVolumeAssembly in file %s", geoFile));
+  TGeoNode *topNode = tgva->GetNode(0);
+  if (!topNode)
+    throw runtime_error(Form("ERROR: No top node found in file %s", geoFile));
+  // Declare nodes for left and right parts of the detector
+  TGeoNode *det1Node = nullptr;
+  TGeoNode *det2Node = nullptr;
+  TString nodeName1, nodeName2;
+  bool node1Found=false, node2Found=false;
+
+  int nDetectors = topNode->GetNdaughters();
+  if (nDetectors < 1)
+    throw runtime_error(Form("ERROR: No detector nodes found in file %s", geoFile));
+  if (nDetectors < 2)
+    std::cerr << Form("WARNING: 2 detectors expected but only 1 was found in the top node!") << std::endl;
+  for (int i = 0; i < nDetectors; i++) {
+    det1Node = topNode->GetDaughter(i);
+    nodeName1 = det1Node->GetName();
+    nodeName1.ToLower();
+    if (nodeName1.Contains(detectorTag)) {
+      node1Found = true;
+      for (int j = i+1; j < nDetectors; j++) {
+        det2Node = topNode->GetDaughter(j);
+        nodeName2 = det2Node->GetName();
+        nodeName2.ToLower();
+        if (nodeName2.Contains(detectorTag)) {
+          node2Found = true;
+          break;
+        }
+      }
+      break;
+    }
+  }
+
+  TVector3 frontFaceLocal, frontFaceGlobal;
+  int nModules, nModules1, nModules2;
+  if (node1Found) {
+    auto geoMatrix = det1Node->GetMatrix();
+    auto geoBox = (TGeoBBox*) det1Node->GetVolume()->GetShape();
+    frontFaceLocal.SetXYZ(0, 0, -geoBox->GetDZ());
+    geoMatrix->LocalToMaster(&frontFaceLocal[0], &frontFaceGlobal[0]);
+    printf("%s node name: %s\n", detectorTag, nodeName1.Data());
+
+    nModules1 = det1Node->GetNdaughters();
+    for (int i = 0; i < nModules1; ++i) {
+      auto *daughter = det1Node->GetDaughter(i);
+      auto geoMatrix = daughter->GetMatrix();
+      TVector3 translation(geoMatrix->GetTranslation());
+      int modId = daughter->GetNumber();
+      double x  = translation.X();
+      double y  = translation.Y();
+      translation.SetZ(frontFaceGlobal.Z());
+      double z  = translation.Z();
+      modulePosMap.insert({modId, {x,y,z}});
+    }
+  }
+  if (node2Found) {
+    auto geoMatrix = det2Node->GetMatrix();
+    auto geoBox = (TGeoBBox*) det2Node->GetVolume()->GetShape();
+    frontFaceLocal.SetXYZ(0, 0, -geoBox->GetDZ());
+    geoMatrix->LocalToMaster(&frontFaceLocal[0], &frontFaceGlobal[0]);
+    printf("%s node name: %s\n", detectorTag, nodeName2.Data());
+
+    nModules2 = det2Node->GetNdaughters();
+    for (int i = 0; i < nModules2; ++i) {
+      auto *daughter = det2Node->GetDaughter(i);
+      auto geoMatrix = daughter->GetMatrix();
+      TVector3 translation(geoMatrix->GetTranslation());
+      int modId = daughter->GetNumber();
+      double x  = translation.X();
+      double y  = translation.Y();
+      translation.SetZ(frontFaceGlobal.Z());
+      double z  = translation.Z();
+      modulePosMap.insert({modId + nModules1, {x,y,z}});
+    }
+  }
+
+  fiGeo->Close();
+  nModules = modulePosMap.rbegin()->first;
+    vector <XYZVector> modulePosVector(nModules,{0.,0.,0.});
+  for(auto &modulePos:modulePosMap)
+    modulePosVector.at(modulePos.first-1)=modulePos.second;
+  if (verbose)
+  {
+    printf("%d module positions:\n", nModules);
+    for(int i=0;i<nModules;i++)
+      printf("%d: (%f, %f, %f)\n", i, modulePosVector.at(i).x(), modulePosVector.at(i).y(), modulePosVector.at(i).z());
+  }
+  return modulePosVector;
 }
 
 RVec<float> fhcalModE(const RVec<MpdZdcDigi> &fhcalHits)
@@ -480,48 +548,7 @@ try {
   throw e;
 }
 
-RVec<int> moduleId (const vector<XYZVector> &modulePos)
-try {
-  bool verbose = false;
-  vector <int> moduleIds;
-  for (int i=0;i<(int)modulePos.size();i++)
-    moduleIds.push_back(i);
-  if (verbose) {
-    for(int i=0;i<(int)moduleIds.size();i++)
-      printf("\t%d: (id = %d)\n", i, moduleIds.at(i));
-  }
-  return moduleIds;
-} catch( const std::exception& e ){
-  std::cout << __func__ << std::endl;
-  throw e;
-}
-
-XYZVector vtxPos(const MpdVertex &vertex)
-{
-  return {vertex.GetX(), vertex.GetY(), vertex.GetZ()};
-}
-
-double vtxChi2(const MpdVertex &vertex)
-{
-  return vertex.GetChi2();
-}
-
-int vtxNdf(const MpdVertex &vertex)
-{
-  return vertex.GetNDF();
-}
-
-double vtxChi2Ndf(const MpdVertex &vertex)
-{
-  return (double)(vertex.GetChi2())/(double)(vertex.GetNDF());
-}
-
-int vtxNtracks(const MpdVertex &vertex)
-{
-  return vertex.GetNTracks();
-}
-
-void convertMPD(string inDst="", string fileOut="")
+void convertMPD(string inDst="", string fileOut="", string inGeo="")
 {
   TStopwatch timer;
   timer.Start();
@@ -533,36 +560,20 @@ void convertMPD(string inDst="", string fileOut="")
 
   int nEvents = chainRec->GetEntries();
 
-  auto fhcalModPos = modulePos();
+  auto fhcalModPos = modulePos(inGeo.c_str(), "zdc");
 
   //magField = new MpdFieldMap("B-field_v2", "A");
   magField = new MpdConstField();
   magField->SetField(0., 0., 5.); // values are in kG:  1T = 10kG
   magField->SetFieldRegion(-230, 230, -230, 230, -375, 375); // values in cm
-  cout << "FIELD at (0., 0., 0.) cm    = (" << magField->GetBx(0., 0., 0.)
-       << "; " << magField->GetBy(0., 0., 0.)
-       << "; " << magField->GetBz(0., 0., 0.) << ") kG" << endl;
-  cout << "FIELD at (0., 0., -115.) cm = (" << magField->GetBx(0., 0., -115.)
-       << "; " << magField->GetBy(0., 0., -115.)
-       << "; " << magField->GetBz(0., 0., -115.) << ") kG" << endl;
-
 
   auto dd = d
-    // .Define("evtId", [](int x){ return x; }, {"MCEventHeader.fEventId"})
-    //.Define("recoPrimVtxX", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesX"})
-    //.Define("recoPrimVtxY", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesY"})
-    //.Define("recoPrimVtxZ", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesZ"})
-    //.Define("recoPrimVtxChi2", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesChi2"})
-    //.Define("recoPrimVtxChi2", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesChi2"})
+    .Define("evId", [](unsigned int id){ return (int)id; }, {"MCEventHeader.fEventId"})
     .Define("recoPrimVtxX", {"MPDEvent.PrimaryVerticesX"})
     .Define("recoPrimVtxY", {"MPDEvent.PrimaryVerticesY"})
     .Define("recoPrimVtxZ", {"MPDEvent.PrimaryVerticesZ"})
     .Define("recoPrimVtxChi2", {"MPDEvent.PrimaryVerticesChi2"})
-    // .Define("recoVtxPos", vtxPos, {"Vertex"})
-    // .Define("recoVtxChi2", vtxChi2, {"Vertex"})
-    // .Define("recoVtxNDF", vtxNdf, {"Vertex"})
-    // .Define("recoVtxChi2NDF", vtxChi2Ndf, {"Vertex"})
-    // .Define("recoVtxNtracks", vtxNtracks, {"Vertex"})
+    .Define("recoVtxNtracks", "Vertex.fNTracks")
     .Define("mcVtxX", {"MCEventHeader.fX"})
     .Define("mcVtxY", {"MCEventHeader.fY"})
     .Define("mcVtxZ", {"MCEventHeader.fZ"})
