@@ -1,45 +1,7 @@
-#include <iostream>
-#include <vector>
-#include <map>
-#include <algorithm>
-
-#include <TMath.h>
-#include <TChain.h>
-#include <TDatabasePDG.h>
-#include <TCollection.h>
-#include <TFileCollection.h>
-#include <ROOT/RDataFrame.hxx>
-#include <ROOT/RVec.hxx>
-#include <Math/GenVector/LorentzVector.h>
-#include <Math/GenVector/PtEtaPhiE4D.h>
-#include <Math/Vector3D.h>
-#include <Math/Vector4D.h>
-#include <TMatrixDSym.h>
-#include <TMatrixDUtilsfwd.h>
-
-#include "MpdConstField.h"
-#include "MpdFieldMap.h"
-#include "MpdEvent.h"
-#include "MpdVertex.h"
-#include "MpdTrack.h"
-#include "MpdTpcKalmanTrack.h"
-#include "MpdMCTrack.h"
-#include "MpdZdcDigi.h"
-
 using namespace ROOT;
 using namespace ROOT::Math;
 using namespace ROOT::RDF;
-using ROOT::VecOps::Map;
 using fourVector=LorentzVector<PtEtaPhiE4D<double>>;
-
-#ifdef __CINT__
-
-#pragma link C++ nestedclass;
-#pragma link C++ nestedtypedef;
-
-#pragma link C++ class vector<vector<float>>+;
-
-#endif
 
 //MpdFieldMap* magField{nullptr};
 MpdConstField *magField{nullptr};
@@ -295,7 +257,7 @@ try {
   throw e;
 }
 
-vector<vector<float>> trGlobalFirstParam(const RVec<MpdTrack> &tracks)
+vector< vector<float> > trGlobalFirstParam(const RVec<MpdTrack> &tracks)
 try {
   vector<vector<float>> parameters;
   for (auto &track:tracks) {
@@ -310,7 +272,7 @@ try {
   throw e;
 }
 
-vector<vector<float>> trGlobalLastParam(const RVec<MpdTrack> &tracks)
+vector< vector<float> > trGlobalLastParam(const RVec<MpdTrack> &tracks)
 try {
   vector<vector<float>> parameters;
   for (auto &track:tracks) {
@@ -325,7 +287,7 @@ try {
   throw e;
 }
 
-vector<vector<float> > covMatrix(const RVec<MpdTpcKalmanTrack> &kalman_tracks)
+vector< vector<float> > covMatrix(const RVec<MpdTpcKalmanTrack> &kalman_tracks)
 try {
   vector<vector<float>> covariance_matrix;
   for (auto &kalman_track:kalman_tracks) {
@@ -487,9 +449,9 @@ try {
   }
   if (verbose)
   {
-    printf("%d module positions:\n", nModules);
+    printf("\t%d module positions:\n", nModules);
     for(int i=0;i<nModules;i++)
-      printf("%d: (%f, %f, %f)\n", i, modulePosVector.at(i).x(), modulePosVector.at(i).y(), modulePosVector.at(i).z());
+      printf("\t%d: (%f, %f, %f)\n", i, modulePosVector.at(i).x(), modulePosVector.at(i).y(), modulePosVector.at(i).z());
   }
   return modulePosVector;
 } catch( const std::exception& e ){
@@ -499,6 +461,7 @@ try {
 
 RVec<float> fhcalModE(const RVec<MpdZdcDigi> &fhcalHits)
 try {
+  bool verbose = false;
   const int nModules = 90;
   vector<float> fhcalModEnergy(nModules, 0.);
   for (auto hit:fhcalHits) {
@@ -506,6 +469,10 @@ try {
     int mod_id = hit.GetModuleID()-1;
     int i_module = mod_id + (nModules/2) * (det_id-1);
     fhcalModEnergy.at(i_module) += hit.GetELoss();
+  }
+  if (verbose) {
+    for(int i=0;i<nModules;i++)
+      printf("\t%d: (E = %f)\n", i, fhcalModEnergy.at(i));
   }
   return fhcalModEnergy;
 } catch( const std::exception& e ){
@@ -515,9 +482,14 @@ try {
 
 RVec<int> moduleId (const vector<XYZVector> &modulePos)
 try {
+  bool verbose = false;
   vector <int> moduleIds;
   for (int i=0;i<(int)modulePos.size();i++)
-    moduleIds.push_back(i+1);
+    moduleIds.push_back(i);
+  if (verbose) {
+    for(int i=0;i<(int)moduleIds.size();i++)
+      printf("\t%d: (id = %d)\n", i, moduleIds.at(i));
+  }
   return moduleIds;
 } catch( const std::exception& e ){
   std::cout << __func__ << std::endl;
@@ -553,6 +525,8 @@ void convertMPD(string inDst="", string fileOut="")
 {
   TStopwatch timer;
   timer.Start();
+
+  gInterpreter->GenerateDictionary("vector<vector<float>>");
   
   TChain *chainRec=makeChain(inDst, "mpdsim");
   ROOT::RDataFrame d(*chainRec);
@@ -575,27 +549,32 @@ void convertMPD(string inDst="", string fileOut="")
 
   auto dd = d
     // .Define("evtId", [](int x){ return x; }, {"MCEventHeader.fEventId"})
-    .Define("recoPrimVtxX", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesX"})
-    .Define("recoPrimVtxY", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesY"})
-    .Define("recoPrimVtxZ", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesZ"})
-    .Define("recoPrimVtxChi2", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesChi2"})
+    //.Define("recoPrimVtxX", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesX"})
+    //.Define("recoPrimVtxY", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesY"})
+    //.Define("recoPrimVtxZ", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesZ"})
+    //.Define("recoPrimVtxChi2", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesChi2"})
+    //.Define("recoPrimVtxChi2", [](float x){ return x; }, {"MPDEvent.PrimaryVerticesChi2"})
+    .Define("recoPrimVtxX", {"MPDEvent.PrimaryVerticesX"})
+    .Define("recoPrimVtxY", {"MPDEvent.PrimaryVerticesY"})
+    .Define("recoPrimVtxZ", {"MPDEvent.PrimaryVerticesZ"})
+    .Define("recoPrimVtxChi2", {"MPDEvent.PrimaryVerticesChi2"})
     // .Define("recoVtxPos", vtxPos, {"Vertex"})
     // .Define("recoVtxChi2", vtxChi2, {"Vertex"})
     // .Define("recoVtxNDF", vtxNdf, {"Vertex"})
     // .Define("recoVtxChi2NDF", vtxChi2Ndf, {"Vertex"})
     // .Define("recoVtxNtracks", vtxNtracks, {"Vertex"})
-    .Define("mcVtxX", [](double x){ return x; }, {"MCEventHeader.fX"})
-    .Define("mcVtxY", [](double x){ return x; }, {"MCEventHeader.fY"})
-    .Define("mcVtxZ", [](double x){ return x; }, {"MCEventHeader.fZ"})
-    .Define("mcB", [](double x){ return x; }, { "MCEventHeader.fB"})
-    .Define("mcRP", [](double x){ return x; }, { "MCEventHeader.fRotZ"})
+    .Define("mcVtxX", {"MCEventHeader.fX"})
+    .Define("mcVtxY", {"MCEventHeader.fY"})
+    .Define("mcVtxZ", {"MCEventHeader.fZ"})
+    .Define("mcB", { "MCEventHeader.fB"})
+    .Define("mcRP", { "MCEventHeader.fRotZ"})
     .Define("recoGlobalTracks", getGlobalTracks, {"MPDEvent."})
     .Define("recoGlobalMom", trackMomentum, {"recoGlobalTracks"})
     .Define("recoGlobalNhits", recNhits, {"recoGlobalTracks"})
     .Define("recoGlobalNhitsFit", recNhitsFit, {"recoGlobalTracks"})
     .Define("recoGlobalNhitsPoss", recNhitsPoss, {"recoGlobalTracks"})
     .Define("recoGlobalChi2",  recChi2, {"recoGlobalTracks"})
-    // .Define("recoGlobalP", trackP, {"recoGlobalTracks"})
+    .Define("recoGlobalP", trackP, {"recoGlobalTracks"})
     .Define("recoGlobalTofFlag", recHasTofHit, {"recoGlobalTracks"})
     .Define("recoGlobalCharge",recCharge,{"recoGlobalTracks"})
     .Define("recoGlobalDca", recDca, {"recoGlobalTracks"})
@@ -634,7 +613,12 @@ void convertMPD(string inDst="", string fileOut="")
     if (!exclude)
       definedNames.push_back(definedName);
   }
-  dd.Snapshot("t", fileOut, definedNames);
+  auto n_events_filtered = *(dd.Count());
+  std::cout << "Number of filtered events: " << n_events_filtered << std::endl;
+  if( n_events_filtered > 0 )
+    dd.Snapshot("t", fileOut, definedNames);
+
+  gSystem->Exec("rm -v AutoDict_*");
   
   timer.Stop();
   timer.Print();
