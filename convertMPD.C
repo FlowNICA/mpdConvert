@@ -264,7 +264,7 @@ try {
     parameters.emplace_back();
     parameters.back().push_back( track.GetFirstPointX() );
     parameters.back().push_back( track.GetFirstPointY() );
-    parameters.back().push_back( track.GetFirstPointY() );
+    parameters.back().push_back( track.GetFirstPointZ() );
   }
   return parameters;
 } catch( const std::exception& e ){
@@ -279,9 +279,132 @@ try {
     parameters.emplace_back();
     parameters.back().push_back( track.GetLastPointX() );
     parameters.back().push_back( track.GetLastPointY() );
-    parameters.back().push_back( track.GetLastPointY() );
+    parameters.back().push_back( track.GetLastPointZ() );
   }
   return parameters;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+bool propagateKalman2vertex(MpdTpcKalmanTrack in, MpdTpcKalmanTrack &out)
+{
+  // Propagate kalman track to the dca to vertex
+  MpdTpcKalmanTrack tmp(in);
+  bool verbose = false;
+
+  // Resetting params and cov. matrix to those ones at dca2beamline ...
+  tmp.SetParam(*in.GetParam());
+  tmp.SetCovariance(*in.GetCovariance());
+
+  if (verbose) {
+    cout << "Track params. at 2D-DCA to beamline (vertex):" << endl;
+    in.GetParam()->Print();
+    in.GetCovariance()->Print();
+    cout << "Propagated track params. at 2D-DCA to beamline (vertex):" << endl;
+    tmp.GetParam()->Print();
+    tmp.GetCovariance()->Print();
+  }
+
+  out = tmp;
+  return true;
+}
+
+bool propagateKalman2first(MpdTpcKalmanTrack in, MpdTpcKalmanTrack &out)
+{
+  // Propagate kalman track to the inner TPC shell
+  MpdTpcKalmanTrack tmp(in);
+  bool verbose = false;
+  tmp.SetDirection(MpdKalmanTrack::kOutward);
+
+  /// Propagate TPC track to 27 cm inward (fPos == 27)
+  MpdKalmanHit hitTmp;
+  hitTmp.SetType(MpdKalmanHit::kFixedR);
+  hitTmp.SetPos(tmp.GetPos()); // fPos ~= 27 cm
+  
+  tmp.SetParamNew(*tmp.GetParam());
+  tmp.SetPos(tmp.GetPosNew());
+  tmp.ReSetWeight();
+  TMatrixDSym w = *tmp.GetWeight(); // save current weight matrix
+
+  Bool_t ok = MpdKalmanFilter::Instance()->PropagateToHit(&tmp, &hitTmp, false, false, -1.0);
+  if (!ok) {
+    cerr << "WARNING: Could not propagate kalman track " << tmp.GetTrackID() << ". Skipping this one." << endl;
+    out = tmp;
+    return ok;
+  }
+  
+  // After that GetCovariance() and GetParamNew() will give the values at the GetPosNew() point near the inner shell (R ~= 27 cm)
+  TMatrixDSym cov(*tmp.Weight2Cov());
+  TMatrixD param(*tmp.GetParamNew());
+  
+  // Resetting params and cov. matrix by the propagated ones ...
+  tmp.SetParam(param);
+  tmp.SetCovariance(cov);
+
+  if (verbose) {
+    cout << "Track params. at 2D-DCA to beamline (vertex):" << endl;
+    in.GetParam()->Print();
+    in.GetCovariance()->Print();
+    cout << "Propagated track params. at the inner TPC shell (first):" << endl;
+    tmp.GetParam()->Print();
+    tmp.GetCovariance()->Print();
+  }
+
+  out = tmp;
+  return true;
+}
+
+bool propagateKalman2last(MpdTpcKalmanTrack in, MpdTpcKalmanTrack &out)
+{
+  // Propagate kalman track to the last point (point of the last hit)
+  MpdTpcKalmanTrack tmp(in);
+  bool verbose = false;
+
+  // Resetting params and cov. matrix to those ones  at the last hit ...
+  tmp.SetParam(*in.GetParamAtHit());
+
+  TMatrixDSym* weightAtLastHit = in.GetWeightAtHit();
+  TMatrixDSym& covarAtLastHit = weightAtLastHit->InvertFast();
+
+  tmp.SetCovariance(covarAtLastHit);
+
+  if (verbose) {
+    cout << "Track params. at 2D-DCA to beamline (vertex):" << endl;
+    in.GetParam()->Print();
+    in.GetCovariance()->Print();
+    cout << "Propagated track params. at the last hit (last):" << endl;
+    tmp.GetParam()->Print();
+    tmp.GetCovariance()->Print();
+  }
+
+  out = tmp;
+  return true;
+}
+
+RVec<MpdTpcKalmanTrack> getKalmanFirst(const RVec<MpdTpcKalmanTrack> &kalman_tracks)
+try {
+  RVec<MpdTpcKalmanTrack> tracks;
+  for (auto &kalman_track:kalman_tracks) {
+    MpdTpcKalmanTrack track;
+    propagateKalman2first(kalman_track, track);
+    tracks.push_back(track);
+  }
+  return tracks;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<MpdTpcKalmanTrack> getKalmanLast(const RVec<MpdTpcKalmanTrack> &kalman_tracks)
+try {
+  RVec<MpdTpcKalmanTrack> tracks;
+  for (auto &kalman_track:kalman_tracks) {
+    MpdTpcKalmanTrack track;
+    propagateKalman2last(kalman_track, track);
+    tracks.push_back(track);
+  }
+  return tracks;
 } catch( const std::exception& e ){
   std::cout << __func__ << std::endl;
   throw e;
@@ -297,12 +420,41 @@ try {
     // cout << "\t\tNcols = " << ncols << ", Nrows = " << nrows << endl;
     covariance_matrix.emplace_back();
     for (int i=0; i<ncols; ++i) {
-      for (int j=0; j<i; ++j) {
+      for (int j=0; j<=i; ++j) {
         covariance_matrix.back().push_back( (float)TMatrixDRow(*cov, i)(j) );
+        //cout << "(" << i << ", " << j << ") = " << (float)TMatrixDRow(*cov, i)(j) << endl;
       }
     }
   }
   return covariance_matrix;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+vector< vector<float> > getKalmanParams(const RVec<MpdTpcKalmanTrack> &kalman_tracks)
+try {
+  // Get a set of parameters from the kalman track: (x,y,z,px,py,pz)
+  vector<vector<float>> params;
+  for (auto &kalman_track:kalman_tracks) {
+    auto phi = kalman_track.GetParam(0) / kalman_track.GetPosNew();
+    auto x = kalman_track.GetPosNew() * cos(phi);
+    auto y = kalman_track.GetPosNew() * sin(phi);
+    auto z = kalman_track.GetZ();
+    //auto q = kalman_track.Charge();
+    auto px = kalman_track.Momentum3().X();
+    auto py = kalman_track.Momentum3().Y();
+    auto pz = kalman_track.Momentum3().Z();
+
+    params.emplace_back();
+    params.back().push_back( x );
+    params.back().push_back( y );
+    params.back().push_back( z );
+    params.back().push_back( px );
+    params.back().push_back( py );
+    params.back().push_back( pz );
+  }
+  return params;
 } catch( const std::exception& e ){
   std::cout << __func__ << std::endl;
   throw e;
@@ -553,6 +705,7 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
   TStopwatch timer;
   timer.Start();
 
+  cout << "Creating additional dictionary for IO..." << endl;
   gInterpreter->GenerateDictionary("vector<vector<float>>");
   
   TChain *chainRec=makeChain(inDst, "mpdsim");
@@ -592,7 +745,12 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     .Define("recoGlobalTofMass2", recTofMass2, {"recoGlobalTracks"})
     .Define("recoGlobalParamFirst", trGlobalFirstParam, {"recoGlobalTracks"})
     .Define("recoGlobalParamLast", trGlobalLastParam, {"recoGlobalTracks"})
-    .Define("recoKalmanCovMatrix", covMatrix, {"TpcKalmanTrack"})
+    //.Define("recoKalmanFirst", getKalmanFirst, {"TpcKalmanTrack"})
+    .Define("recoKalmanLast", getKalmanLast, {"TpcKalmanTrack"})
+    //.Define("recoKalmanParamFirst", getKalmanParams, {"recoKalmanFirst"})
+    .Define("recoKalmanParamLast", getKalmanParams, {"recoKalmanLast"})
+    .Define("recoKalmanParamVertex", getKalmanParams, {"TpcKalmanTrack"})
+    .Define("recoKalmanCovMtxVertex", covMatrix, {"TpcKalmanTrack"})
     .Define("recoKalmanNofWrong", kalmanNwrong, {"TpcKalmanTrack"})
     .Define("recoKalmanLength", kalmanLength, {"TpcKalmanTrack"})
     .Define("recoKalmanCh2Ndf", kalmanChi2, {"TpcKalmanTrack"})
@@ -614,7 +772,7 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
   cout << endl;
 
   vector<string> definedNames;
-  vector<string> toExclude={"recoGlobalTracks", "simAssocTracks"};
+  vector<string> toExclude={"recoGlobalTracks", "simAssocTracks", "recoKalmanFirst", "recoKalmanLast"};
   for (auto& definedName:dd.GetDefinedColumnNames())
   {
     bool exclude=false;
@@ -629,7 +787,8 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
   if( n_events_filtered > 0 )
     dd.Snapshot("t", fileOut, definedNames);
 
-  gSystem->Exec("rm -v AutoDict_*");
+  cout << "Removing generated additional dictionaries..." << endl;
+  gSystem->Exec("rm AutoDict_*");
   
   timer.Stop();
   timer.Print();
