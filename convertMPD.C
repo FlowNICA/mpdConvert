@@ -568,6 +568,94 @@ try {
   throw e;
 }
 
+float determinant3x3( const std::array<std::array<float, 3>, 3>& matrix ) try {
+  auto x_0 = matrix[0][0] * ( matrix[1][1]*matrix[2][2] - matrix[1][2]*matrix[2][1]  );
+  auto x_1 = matrix[0][1] * ( matrix[1][0]*matrix[2][2] - matrix[1][2]*matrix[2][0]  );
+  auto x_2 = matrix[0][2] * ( matrix[1][0]*matrix[2][1] - matrix[1][1]*matrix[2][0]  );
+
+  return x_0 - x_1 + x_2;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+std::array<float, 3> cramerFieldSolver3x3( std::array<float, 3> field, std::array<float, 3> coordinate ) try {
+  // Solving the system of equation to extract parameters of quadratic extrapolation of the magnetic field
+  // Ax = B
+  // xi = detAi / detA
+  std::array<std::array<float, 3>, 3> A;
+  A[0] = {1.0f, 1.0f, 1.0f };
+  A[1] = { coordinate[0], coordinate[1], coordinate[2] };
+  A[2] = { coordinate[0]*coordinate[0], coordinate[1]*coordinate[1], coordinate[2]*coordinate[2] };
+
+  auto A0 = A;
+  A0[0] = field;
+  auto A1 = A;
+  A1[1] = field;
+  auto A2 = A;
+  A2[2] = field;
+
+  auto detA = determinant3x3( A );
+  auto detA0 = determinant3x3( A0 );
+  auto detA1 = determinant3x3( A1 );
+  auto detA2 = determinant3x3( A2 );
+
+  auto p0 = detA0 / detA;
+  auto p1 = detA1 / detA;
+  auto p2 = detA2 / detA;
+
+  return {p0, p1, p2};
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+vector< vector<float> > magneticField(const RVec<MpdTpcKalmanTrack> kalman_tracks)
+try{
+  vector<vector<float>> magnetic_field;
+  for (auto &kalman_track:kalman_tracks) {
+    std::array<float, 3> hit_z;
+    std::array<float, 3> hit_bx;
+    std::array<float, 3> hit_by;
+    std::array<float, 3> hit_bz;
+
+    for( int i=0; i<3; ++i ){
+      // It seems size of the hitmap cannot be less than 4, but just to be safe
+      if( i > kalman_track.GetHits()->GetEntriesFast() )
+        magnetic_field.push_back( std::vector<float>(10, 0.0f) );
+
+      auto hit = (MpdKalmanHit *)kalman_track.GetHits()->At(i);
+      auto r = hit->GetDist();
+      auto phi = hit->GetPhi();
+      auto x = r*cos(phi);
+      auto y = r*sin(phi);
+      auto z = hit->GetMeas(1);
+
+      hit_z.at(i) = z;
+      hit_bx.at(i) = magField->GetBx( x, y, z ); // kGs
+      hit_by.at(i) = magField->GetBy( x, y, z ); // kGs
+      hit_bz.at(i) = magField->GetBz( x, y, z ); // kGs
+    }
+
+    auto parameters_bx = cramerFieldSolver3x3( hit_bx, hit_z );
+    auto parameters_by = cramerFieldSolver3x3( hit_by, hit_z );
+    auto parameters_bz = cramerFieldSolver3x3( hit_bz, hit_z );
+
+    magnetic_field.emplace_back();
+    for( const auto& c : parameters_bx )
+      magnetic_field.back().push_back( c );
+    for( const auto& c : parameters_by )
+      magnetic_field.back().push_back( c );
+    for( const auto& c : parameters_bz )
+      magnetic_field.back().push_back( c );
+    magnetic_field.back().push_back( 0.0 ); // z0
+  }
+  return magnetic_field;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
 RVec<int> recSimIndex(const RVec<MpdTrack> &recoTracks, const RVec<MpdMCTrack> simTracks, const RVec<MpdMCTrack> &assocMcTracks)
 try {
   vector<int> newIndex;
@@ -791,6 +879,8 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
   magField = new MpdConstField();
   magField->SetField(0., 0., 5.); // values are in kG:  1T = 10kG
   magField->SetFieldRegion(-230, 230, -230, 230, -375, 375); // values in cm
+  magField->Init();
+  magField->Print();
 
   auto dd = d
     .Define("evId", [](unsigned int id){ return (int)id; }, {"MCEventHeader.fEventId"})
@@ -826,6 +916,7 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     .Define("recoKalmanNofWrong", kalmanNwrong, {"TpcKalmanTrack"})
     .Define("recoKalmanLength", kalmanLength, {"TpcKalmanTrack"})
     .Define("recoKalmanCh2Ndf", kalmanChi2, {"TpcKalmanTrack"})
+    .Define("recoKalmanMagField", magneticField, {"TpcKalmanTrack"})
     .Define("simAssocTracks", getAssocSimTracks, {"recoGlobalTracks", "MCTrack"})
     .Define("simMom", simMomentum, {"MCTrack", "simAssocTracks"})
     .Define("simPosStart", simPosStart, {"MCTrack", "simAssocTracks"})
