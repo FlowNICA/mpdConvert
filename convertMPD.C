@@ -412,20 +412,92 @@ try {
 
 vector< vector<float> > covMatrix(const RVec<MpdTpcKalmanTrack> &kalman_tracks)
 try {
+  // Get covariance matrix in standard 6x6 format (x, y, z, px, py, pz)
+  //     state vector in MPD: (r*phi, z, phi, lambda=pi/2-theta, -q/pT)
+  //     Cout = J Cin J^T - A->B transformation
   vector<vector<float>> covariance_matrix;
+  bool verbose = false;
+
+  // Getting Jacobian ...
+  float J[6][6];
+  for (int i = 0; i < 6; i++)
+    for (int j = 0; j < 6; j++)
+      J[i][j] = 0;
+
   for (auto &kalman_track:kalman_tracks) {
     auto *cov = kalman_track.GetCovariance();
-    int ncols = cov->GetNcols();
-    // int nrows = cov->GetNrows();
-    // cout << "\t\tNcols = " << ncols << ", Nrows = " << nrows << endl;
-    covariance_matrix.emplace_back();
-    for (int i=0; i<ncols; ++i) {
-      for (int j=0; j<=i; ++j) {
-        covariance_matrix.back().push_back( (float)TMatrixDRow(*cov, i)(j) );
-        //cout << "(" << i << ", " << j << ") = " << (float)TMatrixDRow(*cov, i)(j) << endl;
+    auto *par = kalman_track.GetParam();
+    // Getting corresponding track parameters ...
+    int q = kalman_track.Charge();
+    double pt = kalman_track.Pt();
+    double phi = (*par)(2, 0);
+    double lambda = (*par)(3, 0);
+
+    // Coordinate transformations ...
+    J[0][0] = 1.; // dx / dx
+    J[1][1] = 1.; // dy / dy
+    J[2][2] = 1.; // dz / dz
+    // Momentum transformations ...
+    J[3][3] = -pt * sin(phi); // dPx / d\Phi
+    J[3][5] = pt * pt * cos(phi) / q; // dPx / d(-q / Pt)
+    J[4][3] = pt * cos(phi); // dPy / d\Phi
+    J[4][5] = pt * pt * sin(phi) / q; // dPy / d(-q / Pt)
+    J[5][4] = pt / (cos(lambda) * cos(lambda)); // dPz / dLambda
+    J[5][5] = tan(lambda) * pt * pt / q; // dPz / d(-q / pt)
+
+    // Extending track covariance matrix by one row and one column ...
+    float CovIn[6][6]; // triangular -> symmetric matrix
+    CovIn[0][0] = 1e-4; // dx. start from nowhere
+
+    for (int i = 1; i < 6; i++) {
+      CovIn[i][0] = 0;
+      CovIn[0][i] = 0;
+    }
+
+    for (int i = 1; i < 6; i++) {
+      for (int j = 1; j <= i; j++) {
+        CovIn[i][j] = (*cov)(i - 1, j - 1);
+        CovIn[j][i] = (*cov)(i - 1, j - 1);
       }
     }
+
+    float CovInJt[6][6]; // CovInJt = CovIn * J^t
+    for (int i = 0; i < 6; i++)
+      for (int j = 0; j < 6; j++) {
+        CovInJt[i][j] = 0;
+        for (int k = 0; k < 6; k++)
+          CovInJt[i][j] += CovIn[i][k] * J[j][k];
+      }
+    
+    float CovOut[6][6]; // CovOut = J * CovInJt
+    for (int i = 0; i < 6; i++)
+      for (int j = 0; j < 6; j++) {
+        CovOut[i][j] = 0;
+        for (int k = 0; k < 6; k++)
+          CovOut[i][j] += J[i][k] * CovInJt[k][j];
+      }
+
+    // Lower triangle of the symmetric 6x6 covariance matrix (21 elements)
+    // C[x, y, z, px, py, pz]
+    // { c00, c1[0..1], c2[0..2], ... c4[0..5] }
+    covariance_matrix.emplace_back();
+    for (Int_t i = 0; i < 6; i++)
+      for (Int_t j = 0; j <= i; j++)
+        covariance_matrix.back().push_back(CovOut[i][j]);
   }
+
+  if (verbose) {
+    cout << "------------------------" << endl;
+    cout << "Track cov. matrix (Cout): " << endl;
+    for (auto &v:covariance_matrix) {
+      for (auto &x:v) {
+        printf("%f ", x);
+      }
+      cout << endl;
+    }
+    cout << "------------------------" << endl;
+  }
+  
   return covariance_matrix;
 } catch( const std::exception& e ){
   std::cout << __func__ << std::endl;
@@ -746,9 +818,9 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     .Define("recoGlobalParamFirst", trGlobalFirstParam, {"recoGlobalTracks"})
     .Define("recoGlobalParamLast", trGlobalLastParam, {"recoGlobalTracks"})
     //.Define("recoKalmanFirst", getKalmanFirst, {"TpcKalmanTrack"})
-    .Define("recoKalmanLast", getKalmanLast, {"TpcKalmanTrack"})
+    //.Define("recoKalmanLast", getKalmanLast, {"TpcKalmanTrack"})
     //.Define("recoKalmanParamFirst", getKalmanParams, {"recoKalmanFirst"})
-    .Define("recoKalmanParamLast", getKalmanParams, {"recoKalmanLast"})
+    //.Define("recoKalmanParamLast", getKalmanParams, {"recoKalmanLast"})
     .Define("recoKalmanParamVertex", getKalmanParams, {"TpcKalmanTrack"})
     .Define("recoKalmanCovMtxVertex", covMatrix, {"TpcKalmanTrack"})
     .Define("recoKalmanNofWrong", kalmanNwrong, {"TpcKalmanTrack"})
