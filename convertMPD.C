@@ -513,11 +513,11 @@ try {
     auto x = kalman_track.GetPosNew() * cos(phi);
     auto y = kalman_track.GetPosNew() * sin(phi);
     auto z = kalman_track.GetZ();
-    //auto q = kalman_track.Charge();
     auto px = kalman_track.Momentum3().X();
     auto py = kalman_track.Momentum3().Y();
     auto pz = kalman_track.Momentum3().Z();
-
+    auto q = kalman_track.Charge();
+    
     params.emplace_back();
     params.back().push_back( x );
     params.back().push_back( y );
@@ -525,6 +525,7 @@ try {
     params.back().push_back( px );
     params.back().push_back( py );
     params.back().push_back( pz );
+    params.back().push_back( q );
   }
   return params;
 } catch( const std::exception& e ){
@@ -905,8 +906,8 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     .Define("recoGlobalCharge",recCharge,{"recoGlobalTracks"})
     .Define("recoGlobalDca", recDca, {"recoGlobalTracks"})
     .Define("recoGlobalTofMass2", recTofMass2, {"recoGlobalTracks"})
-    .Define("recoGlobalParamFirst", trGlobalFirstParam, {"recoGlobalTracks"})
-    .Define("recoGlobalParamLast", trGlobalLastParam, {"recoGlobalTracks"})
+    //.Define("recoGlobalParamFirst", trGlobalFirstParam, {"recoGlobalTracks"})
+    //.Define("recoGlobalParamLast", trGlobalLastParam, {"recoGlobalTracks"})
     //.Define("recoKalmanFirst", getKalmanFirst, {"TpcKalmanTrack"})
     //.Define("recoKalmanLast", getKalmanLast, {"TpcKalmanTrack"})
     //.Define("recoKalmanParamFirst", getKalmanParams, {"recoKalmanFirst"})

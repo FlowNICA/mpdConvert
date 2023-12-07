@@ -1,29 +1,30 @@
 #!/bin/bash
 
 #
-#$ -wd /scratch2/$USER/TMP
-#$ -cwd
-#$ -l h=!(ncx152.jinr.ru|ncx205.jinr.ru|ncx123.jinr.ru|ncx111.jinr.ru|ncx113.jinr.ru|ncx149.jinr.ru|ncx223.jinr.ru)
-#$ -N run_mpddst2tree
-#$ -q all.q
-#$ -l h_rt=0:10:00
-#$ -l s_rt=0:10:00
-#$ -t 1-20000
+#SBATCH -D /lustre/home/user/p/parfenov/TMP
+#SBATCH -J ConvertMpd
+#SBATCH --mem-per-cpu=4G
+#SBATCH -p mephi
+#SBATCH --time=12:30:00
+#SBATCH -a 1-1
 #
-#$ -o /scratch2/$USER/TMP
-#$ -e /scratch2/$USER/TMP
+#SBATCH -o /lustre/home/user/p/parfenov/TMP/slurm_mpdconv_%A_%a.out
+#SBATCH -e /lustre/home/user/p/parfenov/TMP/slurm_mpdconv_%A_%a.err
 #
 
-source /cvmfs/nica.jinr.ru/sw/os/login.sh
+source /cvmfs/nica.jinr.ru/sw/os/login.sh latest
 module add mpddev
+source /lustre/home/user/p/parfenov/Soft/mpdroot/install/config/env.sh
 
-export JOB_ID=${JOB_ID}
-export TASK_ID=${SGE_TASK_ID}
+export JOB_ID=${SLURM_ARRAY_JOB_ID}
+export TASK_ID=${SLURM_ARRAY_TASK_ID}
 
-export ecm=3.5
+export ecm=9.2
 
-export FILELIST=/scratch2/parfenov/Soft/mpdConvert/macros/lists/urqmd_bibi_${ecm}gev_mpdfxt.list
+#export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/urqmd_bibi_${ecm}gev_mpdfxt.list
+export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/phsd_bibi_${ecm}gev.list
 
+export GEOFILE=/lustre/home/user/p/parfenov/Soft/mpdroot/install/geometry/zdc_oldnames_7sect_WITH_central_module_v1.root
 export SHORTNAME1=`basename $FILELIST`
 export SHORTNAME11=${SHORTNAME1%.list}
 export LABEL=${SHORTNAME11}
@@ -33,7 +34,7 @@ export INFILE=`sed "${TASK_ID}q;d" ${FILELIST}`
 if [[ -f "$INFILE" ]]; then
 export DATE=${JOB_ID} # or `date '+%Y%m%d_%H%M%S'`
 
-export MAIN_DIR=/scratch2/parfenov/Soft/mpdConvert
+export MAIN_DIR=/lustre/home/user/p/parfenov/Soft/mpdConvert
 export OUT_DIR=${MAIN_DIR}/OUT/${LABEL}/${DATE}
 export OUT_FILE_DIR=${OUT_DIR}/files
 export OUT_LOG_DIR=${OUT_DIR}/log
@@ -48,19 +49,13 @@ mkdir -p $OUT_LOG_DIR
 mkdir -p $TMP_DIR
 touch $OUT_LOG
 
-#while read file; do xrdcp $file $TMP_DIR/; done < $INFILE
-#xrdcp $INFILE ${TMP_DIR}/mpddst.root &>> $OUT_LOG
-rsync -vuzhP ${MAIN_DIR}/convertMPD.C ${TMP_DIR}/convertMPD.C &>> $OUT_LOG
-#ls $TMP_DIR/*.root &> $TMP_DIR/input.list
-
-source /scratch2/parfenov/Soft/mpdroot/install/config/env.sh
+cp -v ${MAIN_DIR}/convertMPD.C ${TMP_DIR}/convertMPD.C &>> $OUT_LOG
 
 echo "Input file : ${INFILE}" &>> $OUT_LOG
 echo "Output file: ${OUT_FILE}" &>> $OUT_LOG
 
-#root -l -b -q ${TMP_DIR}/convertMPD.C+'("'${TMP_DIR}/input.list'","'$OUT_FILE'")' &>> $OUT_LOG
-#root -l -b -q ${TMP_DIR}/convertMPD.C+'("'${TMP_DIR}/mpddst.root'","'$OUT_FILE'")' &>> $OUT_LOG
-root -l -b -q ${TMP_DIR}/convertMPD.C+'("'${INFILE}'","'$OUT_FILE'")' &>> $OUT_LOG
+cd ${TMP_DIR}
+time root -l -b -q convertMPD.C'("'${INFILE}'","'${OUT_FILE}'","'${GEOFILE}'")' &>> $OUT_LOG
 
 rm -rfv ${TMP_DIR} &>> $OUT_LOG
 
