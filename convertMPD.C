@@ -743,7 +743,7 @@ try {
 
 vector<XYZVector> modulePos (const char *geoFile, const char *detectorTag)
 {
-  bool verbose = false;
+  bool verbose = true;
   map <int,XYZVector> modulePosMap;
   printf("Reading %s geometry from geometry file\n", detectorTag);
   TFile *fiGeo = new TFile(geoFile, "read");
@@ -785,6 +785,8 @@ vector<XYZVector> modulePos (const char *geoFile, const char *detectorTag)
 
   TVector3 frontFaceLocal, frontFaceGlobal;
   int nModules, nModules1, nModules2;
+  nModules1 = 45; // default value
+  nModules2 = 45; // default value
   if (node1Found) {
     auto geoMatrix = det1Node->GetMatrix();
     auto geoBox = (TGeoBBox*) det1Node->GetVolume()->GetShape();
@@ -802,6 +804,7 @@ vector<XYZVector> modulePos (const char *geoFile, const char *detectorTag)
       double y  = translation.Y();
       translation.SetZ(frontFaceGlobal.Z());
       double z  = translation.Z();
+      if (verbose) printf("\tModule %i, position: (%2.1f, %2.1f, %2.1f)\n", modId, x, y, z);
       modulePosMap.insert({modId, {x,y,z}});
     }
   }
@@ -822,7 +825,8 @@ vector<XYZVector> modulePos (const char *geoFile, const char *detectorTag)
       double y  = translation.Y();
       translation.SetZ(frontFaceGlobal.Z());
       double z  = translation.Z();
-      modulePosMap.insert({modId + nModules1, {x,y,z}});
+      if (verbose) printf("\tModule %i, position: (%3.1f, %3.1f, %3.1f)\n", modId + nModules1 + 1, x, y, z);
+      modulePosMap.insert({modId + nModules1 + 1, {x,y,z}});
     }
   }
 
@@ -835,15 +839,15 @@ vector<XYZVector> modulePos (const char *geoFile, const char *detectorTag)
   {
     printf("%d module positions:\n", nModules);
     for(int i=0;i<nModules;i++)
-      printf("%d: (%f, %f, %f)\n", i, modulePosVector.at(i).x(), modulePosVector.at(i).y(), modulePosVector.at(i).z());
+      printf("%d: (%3.1f, %3.1f, %3.1f)\n", i, modulePosVector.at(i).x(), modulePosVector.at(i).y(), modulePosVector.at(i).z());
   }
   return modulePosVector;
 }
 
-RVec<float> fhcalModE(const RVec<MpdZdcDigi> &fhcalHits)
+RVec<float> fhcalModE(const RVec<MpdZdcDigi> &fhcalHits, RVec<int> moduleIds)
 try {
   bool verbose = false;
-  const int nModules = 90;
+  const int nModules = moduleIds.size();
   vector<float> fhcalModEnergy(nModules, 0.);
   for (auto hit:fhcalHits) {
     int det_id = hit.GetDetectorID();
@@ -930,7 +934,7 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     .Define("recoGlobalSimMotherId", trSimMotherId, {"recoGlobalSimIndex", "simMotherId"})
     .Define("fhcalModPos", [fhcalModPos](){return fhcalModPos; })
     .Define("fhcalModId", moduleId, {"fhcalModPos"})
-    .Define("fhcalModE",fhcalModE,{"ZdcDigi"})
+    .Define("fhcalModE",fhcalModE,{"ZdcDigi", "fhcalModId"})
   ;
   dd.Foreach([](ULong64_t evtId){if (evtId % 100 == 0) cout << "\r" << evtId;}, {"rdfentry_"}); // progress display 
   cout << endl;
