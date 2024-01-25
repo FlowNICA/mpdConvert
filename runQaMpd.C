@@ -40,13 +40,52 @@ RVec<float> getPhi(vector<fourVector> _p)
   return pt_;
 }
 
-RVec<int> isGoodTrack(vector<fourVector> _p, RVec<int> _nhits)
+RVec<float> getDcaMag(vector<XYZVector> _dca)
+{
+  vector <float> dca_;
+  for (auto& dca:_dca)
+    dca_.push_back(sqrt(dca.Mag2()));
+  return dca_;
+}
+
+RVec<int> isGoodTrack(vector<fourVector> _p, RVec<int> _nhits, RVec<float> _dca)
 {
   vector<int> vec_tracks;
   for(int i=0; i<_p.size(); ++i) {
     auto mom = _p.at(i);
     auto nhits = std::round(_nhits.at(i));
-    if (nhits > 16)
+    auto dca = _dca.at(i);
+    if (nhits > 16 && dca < 100.)
+      vec_tracks.push_back(1);
+    else
+      vec_tracks.push_back(0);
+  }
+  return vec_tracks;
+}
+
+RVec<int> isGoodTrack4Protons(vector<fourVector> _p, RVec<int> _nhits, RVec<float> _dca)
+{
+  vector<int> vec_tracks;
+  for(int i=0; i<_p.size(); ++i) {
+    auto mom = _p.at(i);
+    auto nhits = std::round(_nhits.at(i));
+    auto dca = _dca.at(i);
+    if (nhits > 27 && dca < 1.)
+      vec_tracks.push_back(1);
+    else
+      vec_tracks.push_back(0);
+  }
+  return vec_tracks;
+}
+
+RVec<int> isGoodTrack4Pions(vector<fourVector> _p, RVec<int> _nhits, RVec<float> _dca)
+{
+  vector<int> vec_tracks;
+  for(int i=0; i<_p.size(); ++i) {
+    auto mom = _p.at(i);
+    auto nhits = std::round(_nhits.at(i));
+    auto dca = _dca.at(i);
+    if (nhits > 22 && dca < 3.5)
       vec_tracks.push_back(1);
     else
       vec_tracks.push_back(0);
@@ -120,7 +159,7 @@ RVec<float> getGoodTrackResolutionPid(RVec<float> _reco_tracks, RVec<float> _sim
       continue;
     }
     auto sim_track = _sim_tracks.at(sim_id);
-    auto delta = (sim_track <= std::numeric_limits<float>::min() || sim_track == -999. || rec_track == -999.) ? -999. : (rec_track - sim_track)/sim_track;
+    auto delta = (sim_track <= std::numeric_limits<float>::min() || sim_track == -999. || rec_track == -999.) ? -999. : abs(rec_track - sim_track)/sim_track;
     auto goodtrack = std::round(_isGoodTrack.at(i));
     auto isPrimary = std::round(_isPrimary.at(i));
     auto isPid = std::round(_isPid.at(i));
@@ -152,11 +191,17 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
 
   vector <RResultPtr<::TH1D >> hists;
   vector <RResultPtr<::TH2D >> hists2d;
-  vector <RResultPtr<::TProfile2D >> prof2d;
+  vector <RResultPtr<::TProfile >> profs;
+  vector <RResultPtr<::TProfile2D >> profs2d;
 
   auto dd = d
     .Filter("mcB<16.")
-    .Define("isGoodTrack", isGoodTrack, {"recoGlobalMom", "recoGlobalNhits"})
+    .Define("recDca", getDcaMag, {"recoGlobalDca"})
+    .Define("isGoodTrack", isGoodTrack, {"recoGlobalMom", "recoGlobalNhits", "recDca"})
+    .Define("isGoodTrackProton", isGoodTrack4Protons, {"recoGlobalMom", "recoGlobalNhits", "recDca"})
+    .Define("isGoodTrackPionP", isGoodTrack4Pions, {"recoGlobalMom", "recoGlobalNhits", "recDca"})
+    .Define("isGoodTrackPionM", isGoodTrack4Pions, {"recoGlobalMom", "recoGlobalNhits", "recDca"})
+    .Define("isGoodTrackPions", isGoodTrack4Pions, {"recoGlobalMom", "recoGlobalNhits", "recDca"})
     .Define("isGoodPosEta", isGoodPosEta, {"recoGlobalMom", "isGoodTrack"})
     .Define("isGoodNegEta", isGoodNegEta, {"recoGlobalMom", "isGoodTrack"})
     .Define("isPrimary", "recoGlobalSimMotherId==-1")
@@ -193,24 +238,24 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
       }
       return vec_y;
     },{"recoGlobalSimPdg", "recoGlobalMom"})
-    .Define("recPtGoodProton", trGoodPid, {"recPt", "isGoodTrack", "isPrimary", "isProton"})
-    .Define("recPtGoodPionP", trGoodPid, {"recPt", "isGoodTrack", "isPrimary", "isPionP"})
-    .Define("recPtGoodPionM", trGoodPid, {"recPt", "isGoodTrack", "isPrimary", "isPionM"})
-    .Define("recPtGoodPions", trGoodPid, {"recPt", "isGoodTrack", "isPrimary", "isPions"})
+    .Define("recPtGoodProton", trGoodPid, {"recPt", "isGoodTrackProton", "isPrimary", "isProton"})
+    .Define("recPtGoodPionP", trGoodPid, {"recPt", "isGoodTrackPionP", "isPrimary", "isPionP"})
+    .Define("recPtGoodPionM", trGoodPid, {"recPt", "isGoodTrackPionM", "isPrimary", "isPionM"})
+    .Define("recPtGoodPions", trGoodPid, {"recPt", "isGoodTrackPions", "isPrimary", "isPions"})
     .Define("recPtGoodKaonP", trGoodPid, {"recPt", "isGoodTrack", "isPrimary", "isKaonP"})
     .Define("recPtGoodKaonM", trGoodPid, {"recPt", "isGoodTrack", "isPrimary", "isKaonM"})
     .Define("recPtGoodKaons", trGoodPid, {"recPt", "isGoodTrack", "isPrimary", "isKaons"})
-    .Define("recYGoodProton", trGoodPid, {"recY", "isGoodTrack", "isPrimary", "isProton"})
-    .Define("recYGoodPionP", trGoodPid, {"recY", "isGoodTrack", "isPrimary", "isPionP"})
-    .Define("recYGoodPionM", trGoodPid, {"recY", "isGoodTrack", "isPrimary", "isPionM"})
-    .Define("recYGoodPions", trGoodPid, {"recY", "isGoodTrack", "isPrimary", "isPions"})
+    .Define("recYGoodProton", trGoodPid, {"recY", "isGoodTrackProton", "isPrimary", "isProton"})
+    .Define("recYGoodPionP", trGoodPid, {"recY", "isGoodTrackPionP", "isPrimary", "isPionP"})
+    .Define("recYGoodPionM", trGoodPid, {"recY", "isGoodTrackPionM", "isPrimary", "isPionM"})
+    .Define("recYGoodPions", trGoodPid, {"recY", "isGoodTrackPions", "isPrimary", "isPions"})
     .Define("recYGoodKaonP", trGoodPid, {"recY", "isGoodTrack", "isPrimary", "isKaonP"})
     .Define("recYGoodKaonM", trGoodPid, {"recY", "isGoodTrack", "isPrimary", "isKaonM"})
     .Define("recYGoodKaons", trGoodPid, {"recY", "isGoodTrack", "isPrimary", "isKaons"})
-    .Define("recEtaGoodProton", trGoodPid,{"recEta", "isGoodTrack", "isPrimary", "isProton"})
-    .Define("recEtaGoodPionP", trGoodPid, {"recEta", "isGoodTrack", "isPrimary", "isPionP"})
-    .Define("recEtaGoodPionM", trGoodPid, {"recEta", "isGoodTrack", "isPrimary", "isPionM"})
-    .Define("recEtaGoodPions", trGoodPid, {"recEta", "isGoodTrack", "isPrimary", "isPions"})
+    .Define("recEtaGoodProton", trGoodPid,{"recEta", "isGoodTrackProton", "isPrimary", "isProton"})
+    .Define("recEtaGoodPionP", trGoodPid, {"recEta", "isGoodTrackPionP", "isPrimary", "isPionP"})
+    .Define("recEtaGoodPionM", trGoodPid, {"recEta", "isGoodTrackPionM", "isPrimary", "isPionM"})
+    .Define("recEtaGoodPions", trGoodPid, {"recEta", "isGoodTrackPions", "isPrimary", "isPions"})
     .Define("recEtaGoodKaonP", trGoodPid, {"recEta", "isGoodTrack", "isPrimary", "isKaonP"})
     .Define("recEtaGoodKaonM", trGoodPid, {"recEta", "isGoodTrack", "isPrimary", "isKaonM"})
     .Define("recEtaGoodKaons", trGoodPid, {"recEta", "isGoodTrack", "isPrimary", "isKaons"})
@@ -269,31 +314,31 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
     .Define("simEtaGoodKaonP",  trPrimPid, {"simEta", "isSimPrimary", "isSimKaonP"})
     .Define("simEtaGoodKaonM",  trPrimPid, {"simEta", "isSimPrimary", "isSimKaonM"})
     .Define("simEtaGoodKaons",  trPrimPid, {"simEta", "isSimPrimary", "isSimKaons"})
-    .Define("recDPtGoodProton", getGoodTrackResolutionPid, {"recPt", "simPt", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isProton"})
-    .Define("recDPtGoodPionP",  getGoodTrackResolutionPid, {"recPt", "simPt", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isPionP"}) 
-    .Define("recDPtGoodPionM",  getGoodTrackResolutionPid, {"recPt", "simPt", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isPionM"}) 
-    .Define("recDPtGoodPions",  getGoodTrackResolutionPid, {"recPt", "simPt", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isPions"}) 
+    .Define("recDPtGoodProton", getGoodTrackResolutionPid, {"recPt", "simPt", "recoGlobalSimIndex", "isGoodTrackProton", "isPrimary", "isProton"})
+    .Define("recDPtGoodPionP",  getGoodTrackResolutionPid, {"recPt", "simPt", "recoGlobalSimIndex", "isGoodTrackPionP",  "isPrimary", "isPionP"}) 
+    .Define("recDPtGoodPionM",  getGoodTrackResolutionPid, {"recPt", "simPt", "recoGlobalSimIndex", "isGoodTrackPionM",  "isPrimary", "isPionM"}) 
+    .Define("recDPtGoodPions",  getGoodTrackResolutionPid, {"recPt", "simPt", "recoGlobalSimIndex", "isGoodTrackPions",  "isPrimary", "isPions"}) 
     .Define("recDPtGoodKaonP",  getGoodTrackResolutionPid, {"recPt", "simPt", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isKaonP"}) 
     .Define("recDPtGoodKaonM",  getGoodTrackResolutionPid, {"recPt", "simPt", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isKaonM"}) 
     .Define("recDPtGoodKaons",  getGoodTrackResolutionPid, {"recPt", "simPt", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isKaons"})
-    .Define("recDYGoodProton", getGoodTrackResolutionPid, {"recY", "simY", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isProton"})
-    .Define("recDYGoodPionP",  getGoodTrackResolutionPid, {"recY", "simY", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isPionP"}) 
-    .Define("recDYGoodPionM",  getGoodTrackResolutionPid, {"recY", "simY", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isPionM"}) 
-    .Define("recDYGoodPions",  getGoodTrackResolutionPid, {"recY", "simY", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isPions"}) 
+    .Define("recDYGoodProton", getGoodTrackResolutionPid, {"recY", "simY", "recoGlobalSimIndex", "isGoodTrackProton", "isPrimary", "isProton"})
+    .Define("recDYGoodPionP",  getGoodTrackResolutionPid, {"recY", "simY", "recoGlobalSimIndex", "isGoodTrackPionP",  "isPrimary", "isPionP"}) 
+    .Define("recDYGoodPionM",  getGoodTrackResolutionPid, {"recY", "simY", "recoGlobalSimIndex", "isGoodTrackPionM",  "isPrimary", "isPionM"}) 
+    .Define("recDYGoodPions",  getGoodTrackResolutionPid, {"recY", "simY", "recoGlobalSimIndex", "isGoodTrackPions",  "isPrimary", "isPions"}) 
     .Define("recDYGoodKaonP",  getGoodTrackResolutionPid, {"recY", "simY", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isKaonP"}) 
     .Define("recDYGoodKaonM",  getGoodTrackResolutionPid, {"recY", "simY", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isKaonM"}) 
     .Define("recDYGoodKaons",  getGoodTrackResolutionPid, {"recY", "simY", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isKaons"})
-    .Define("recDEtaGoodProton", getGoodTrackResolutionPid, {"recEta", "simEta", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isProton"})
-    .Define("recDEtaGoodPionP",  getGoodTrackResolutionPid, {"recEta", "simEta", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isPionP"}) 
-    .Define("recDEtaGoodPionM",  getGoodTrackResolutionPid, {"recEta", "simEta", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isPionM"}) 
-    .Define("recDEtaGoodPions",  getGoodTrackResolutionPid, {"recEta", "simEta", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isPions"}) 
+    .Define("recDEtaGoodProton", getGoodTrackResolutionPid, {"recEta", "simEta", "recoGlobalSimIndex", "isGoodTrackProton", "isPrimary", "isProton"})
+    .Define("recDEtaGoodPionP",  getGoodTrackResolutionPid, {"recEta", "simEta", "recoGlobalSimIndex", "isGoodTrackPionP",  "isPrimary", "isPionP"}) 
+    .Define("recDEtaGoodPionM",  getGoodTrackResolutionPid, {"recEta", "simEta", "recoGlobalSimIndex", "isGoodTrackPionM",  "isPrimary", "isPionM"}) 
+    .Define("recDEtaGoodPions",  getGoodTrackResolutionPid, {"recEta", "simEta", "recoGlobalSimIndex", "isGoodTrackPions",  "isPrimary", "isPions"}) 
     .Define("recDEtaGoodKaonP",  getGoodTrackResolutionPid, {"recEta", "simEta", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isKaonP"}) 
     .Define("recDEtaGoodKaonM",  getGoodTrackResolutionPid, {"recEta", "simEta", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isKaonM"}) 
     .Define("recDEtaGoodKaons",  getGoodTrackResolutionPid, {"recEta", "simEta", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isKaons"})
-    .Define("recDPhiGoodProton", getGoodTrackResolutionPid, {"recPhi", "simPhi", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isProton"})
-    .Define("recDPhiGoodPionP",  getGoodTrackResolutionPid, {"recPhi", "simPhi", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isPionP"}) 
-    .Define("recDPhiGoodPionM",  getGoodTrackResolutionPid, {"recPhi", "simPhi", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isPionM"}) 
-    .Define("recDPhiGoodPions",  getGoodTrackResolutionPid, {"recPhi", "simPhi", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isPions"}) 
+    .Define("recDPhiGoodProton", getGoodTrackResolutionPid, {"recPhi", "simPhi", "recoGlobalSimIndex", "isGoodTrackProton", "isPrimary", "isProton"})
+    .Define("recDPhiGoodPionP",  getGoodTrackResolutionPid, {"recPhi", "simPhi", "recoGlobalSimIndex", "isGoodTrackPionP",  "isPrimary", "isPionP"}) 
+    .Define("recDPhiGoodPionM",  getGoodTrackResolutionPid, {"recPhi", "simPhi", "recoGlobalSimIndex", "isGoodTrackPionM",  "isPrimary", "isPionM"}) 
+    .Define("recDPhiGoodPions",  getGoodTrackResolutionPid, {"recPhi", "simPhi", "recoGlobalSimIndex", "isGoodTrackPions",  "isPrimary", "isPions"}) 
     .Define("recDPhiGoodKaonP",  getGoodTrackResolutionPid, {"recPhi", "simPhi", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isKaonP"}) 
     .Define("recDPhiGoodKaonM",  getGoodTrackResolutionPid, {"recPhi", "simPhi", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isKaonM"}) 
     .Define("recDPhiGoodKaons",  getGoodTrackResolutionPid, {"recPhi", "simPhi", "recoGlobalSimIndex", "isGoodTrack", "isPrimary", "isKaons"})
@@ -302,10 +347,19 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
   dd.Foreach([](ULong64_t evtId){if (evtId % 100 == 0) cout << "\r" << evtId;}, {"rdfentry_"});
 
   // Make lists of histograms for QA
-  hists2d.push_back(dd.Histo2D({"h2_recVtx_XY","Reconstructed vertex XY;x (cm);y (cm)",500,-1,1,500,-1,1}, "recoPrimVtxX", "recoPrimVtxY")); 
   hists.push_back(dd.Histo1D({"h1_recVtx_X","Reconstructed vertex X;x (cm)",500,-1,1}, "recoPrimVtxX")); 
   hists.push_back(dd.Histo1D({"h1_recVtx_Y","Reconstructed vertex Y;y (cm)",500,-1,1}, "recoPrimVtxY")); 
   hists.push_back(dd.Histo1D({"h1_recVtx_Z","Reconstructed vertex Z;z (cm)",500,-1,1}, "recoPrimVtxZ"));
+  profs.push_back(dd.Profile1D({"p1_DPt_recNhits_proton", "Pt-resolution for reconstructed protons vs. Nhits;N_{hits};#deltap_{T}", 50, 0., 50., -998., 1000.}, "recoGlobalNhits", "recDPtGoodProton"));
+  profs.push_back(dd.Profile1D({"p1_DPt_recDCA_proton", "Pt-resolution for reconstructed protons vs. DCA;DCA (cm);#deltap_{T}", 50, 0., 5., -998., 1000.}, "recDca", "recDPtGoodProton"));
+  profs.push_back(dd.Profile1D({"p1_DPt_recChi2_proton", "Pt-resolution for reconstructed protons vs. Chi2;#chi_{2}/ndf;#deltap_{T}", 5000, 0., 5000., -998., 1000.}, "recoGlobalChi2", "recDPtGoodProton"));
+  profs.push_back(dd.Profile1D({"p1_DPt_recNhits_pionP", "Pt-resolution for reconstructed pions (#pi^{+}) vs. Nhits;N_{hits};#deltap_{T}", 50, 0., 50., -998., 1000.}, "recoGlobalNhits", "recDPtGoodPionP"));
+  profs.push_back(dd.Profile1D({"p1_DPt_recDCA_pionP", "Pt-resolution for reconstructed pions (#pi^{+}) vs. DCA;DCA (cm);#deltap_{T}", 50, 0., 5., -998., 1000.}, "recDca", "recDPtGoodPionP"));
+  profs.push_back(dd.Profile1D({"p1_DPt_recChi2_pionP", "Pt-resolution for reconstructed pions (#pi^{+}) vs. Chi2;#chi_{2}/ndf;#deltap_{T}", 5000, 0., 5000., -998., 1000.}, "recoGlobalChi2", "recDPtGoodPionP"));
+  profs.push_back(dd.Profile1D({"p1_DPt_recNhits_pionM", "Pt-resolution for reconstructed pions (#pi^{-}) vs. Nhits;N_{hits};#deltap_{T}", 50, 0., 50., -998., 1000.}, "recoGlobalNhits", "recDPtGoodPionM"));
+  profs.push_back(dd.Profile1D({"p1_DPt_recDCA_pionM", "Pt-resolution for reconstructed pions (#pi^{-}) vs. DCA;DCA (cm);#deltap_{T}", 50, 0., 5., -998., 1000.}, "recDca", "recDPtGoodPionM"));
+  profs.push_back(dd.Profile1D({"p1_DPt_recChi2_pionM", "Pt-resolution for reconstructed pions (#pi^{-}) vs. Chi2;#chi_{2}/ndf;#deltap_{T}", 5000, 0., 5000., -998., 1000.}, "recoGlobalChi2", "recDPtGoodPionM"));
+  hists2d.push_back(dd.Histo2D({"h2_recVtx_XY","Reconstructed vertex XY;x (cm);y (cm)",500,-1,1,500,-1,1}, "recoPrimVtxX", "recoPrimVtxY")); 
   hists2d.push_back(dd.Histo2D({"h2_recYPt_proton", "Reconstructed protons Ycm-pT;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodProton", "recPtGoodProton"));
   hists2d.push_back(dd.Histo2D({"h2_recYPt_pionP", "Reconstructed pions (#pi^{+}) Ycm-pT;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionP", "recPtGoodPionP"));
   hists2d.push_back(dd.Histo2D({"h2_recYPt_pionM", "Reconstructed pions (#pi^{-}) Ycm-pT;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionM", "recPtGoodPionM"));
@@ -334,34 +388,34 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
   hists2d.push_back(dd.Histo2D({"h2_simEtaPt_kaonP", "Simulated kaons (K^{+}) #eta-pT;#eta; p_{T} (GeV/c)", 340, -0.2, 3.2, 300, 0., 3.}, "simEtaGoodKaonP", "simPtGoodKaonP"));
   hists2d.push_back(dd.Histo2D({"h2_simEtaPt_kaonM", "Simulated kaons (K^{-}) #eta-pT;#eta; p_{T} (GeV/c)", 340, -0.2, 3.2, 300, 0., 3.}, "simEtaGoodKaonM", "simPtGoodKaonM"));
   hists2d.push_back(dd.Histo2D({"h2_simEtaPt_kaons", "Simulated kaons (K^{#pm}) #eta-pT;#eta; p_{T} (GeV/c)", 340, -0.2, 3.2, 300, 0., 3.}, "simEtaGoodKaons", "simPtGoodKaons"));
-  prof2d.push_back(dd.Profile2D({"p2_DPt_recYPt_proton", "Pt-resolution for reconstructed protons in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodProton", "recPtGoodProton", "recDPtGoodProton"));
-  prof2d.push_back(dd.Profile2D({"p2_DPt_recYPt_pionP", "Pt-resolution for reconstructed pions (#pi^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionP", "recPtGoodPionP", "recDPtGoodPionP"));
-  prof2d.push_back(dd.Profile2D({"p2_DPt_recYPt_pionM", "Pt-resolution for reconstructed pions (#pi^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionM", "recPtGoodPionM", "recDPtGoodPionM"));
-  prof2d.push_back(dd.Profile2D({"p2_DPt_recYPt_pions", "Pt-resolution for reconstructed pions (#pi^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPions", "recPtGoodPions", "recDPtGoodPions"));
-  prof2d.push_back(dd.Profile2D({"p2_DPt_recYPt_kaonP", "Pt-resolution for reconstructed kaons (K^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonP", "recPtGoodKaonP", "recDPtGoodKaonP"));
-  prof2d.push_back(dd.Profile2D({"p2_DPt_recYPt_kaonM", "Pt-resolution for reconstructed kaons (K^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonM", "recPtGoodKaonM", "recDPtGoodKaonM"));
-  prof2d.push_back(dd.Profile2D({"p2_DPt_recYPt_kaons", "Pt-resolution for reconstructed kaons (K^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaons", "recPtGoodKaons", "recDPtGoodKaons"));
-  prof2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_proton", "Phi-resolution for reconstructed protons in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodProton", "recPtGoodProton", "recDPhiGoodProton"));
-  prof2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_pionP", "Phi-resolution for reconstructed pions (#pi^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionP", "recPtGoodPionP", "recDPhiGoodPionP"));
-  prof2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_pionM", "Phi-resolution for reconstructed pions (#pi^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionM", "recPtGoodPionM", "recDPhiGoodPionM"));
-  prof2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_pions", "Phi-resolution for reconstructed pions (#pi^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPions", "recPtGoodPions", "recDPhiGoodPions"));
-  prof2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_kaonP", "Phi-resolution for reconstructed kaons (K^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonP", "recPtGoodKaonP", "recDPhiGoodKaonP"));
-  prof2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_kaonM", "Phi-resolution for reconstructed kaons (K^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonM", "recPtGoodKaonM", "recDPhiGoodKaonM"));
-  prof2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_kaons", "Phi-resolution for reconstructed kaons (K^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaons", "recPtGoodKaons", "recDPhiGoodKaons"));
-  prof2d.push_back(dd.Profile2D({"p2_DY_recYPt_proton", "Ycm-resolution for reconstructed protons in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodProton", "recPtGoodProton", "recDYGoodProton"));
-  prof2d.push_back(dd.Profile2D({"p2_DY_recYPt_pionP", "Ycm-resolution for reconstructed pions (#pi^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionP", "recPtGoodPionP", "recDYGoodPionP"));
-  prof2d.push_back(dd.Profile2D({"p2_DY_recYPt_pionM", "Ycm-resolution for reconstructed pions (#pi^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionM", "recPtGoodPionM", "recDYGoodPionM"));
-  prof2d.push_back(dd.Profile2D({"p2_DY_recYPt_pions", "Ycm-resolution for reconstructed pions (#pi^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPions", "recPtGoodPions", "recDYGoodPions"));
-  prof2d.push_back(dd.Profile2D({"p2_DY_recYPt_kaonP", "Ycm-resolution for reconstructed kaons (K^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonP", "recPtGoodKaonP", "recDYGoodKaonP"));
-  prof2d.push_back(dd.Profile2D({"p2_DY_recYPt_kaonM", "Ycm-resolution for reconstructed kaons (K^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonM", "recPtGoodKaonM", "recDYGoodKaonM"));
-  prof2d.push_back(dd.Profile2D({"p2_DY_recYPt_kaons", "Ycm-resolution for reconstructed kaons (K^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaons", "recPtGoodKaons", "recDYGoodKaons"));
-  prof2d.push_back(dd.Profile2D({"p2_DEta_recYPt_proton", "Eta-resolution for reconstructed protons in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodProton", "recPtGoodProton", "recDEtaGoodProton"));
-  prof2d.push_back(dd.Profile2D({"p2_DEta_recYPt_pionP", "Eta-resolution for reconstructed pions (#pi^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionP", "recPtGoodPionP", "recDEtaGoodPionP"));
-  prof2d.push_back(dd.Profile2D({"p2_DEta_recYPt_pionM", "Eta-resolution for reconstructed pions (#pi^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionM", "recPtGoodPionM", "recDEtaGoodPionM"));
-  prof2d.push_back(dd.Profile2D({"p2_DEta_recYPt_pions", "Eta-resolution for reconstructed pions (#pi^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPions", "recPtGoodPions", "recDEtaGoodPions"));
-  prof2d.push_back(dd.Profile2D({"p2_DEta_recYPt_kaonP", "Eta-resolution for reconstructed kaons (K^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonP", "recPtGoodKaonP", "recDEtaGoodKaonP"));
-  prof2d.push_back(dd.Profile2D({"p2_DEta_recYPt_kaonM", "Eta-resolution for reconstructed kaons (K^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonM", "recPtGoodKaonM", "recDEtaGoodKaonM"));
-  prof2d.push_back(dd.Profile2D({"p2_DEta_recYPt_kaons", "Eta-resolution for reconstructed kaons (K^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaons", "recPtGoodKaons", "recDEtaGoodKaons"));
+  profs2d.push_back(dd.Profile2D({"p2_DPt_recYPt_proton", "Pt-resolution for reconstructed protons in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodProton", "recPtGoodProton", "recDPtGoodProton"));
+  profs2d.push_back(dd.Profile2D({"p2_DPt_recYPt_pionP", "Pt-resolution for reconstructed pions (#pi^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionP", "recPtGoodPionP", "recDPtGoodPionP"));
+  profs2d.push_back(dd.Profile2D({"p2_DPt_recYPt_pionM", "Pt-resolution for reconstructed pions (#pi^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionM", "recPtGoodPionM", "recDPtGoodPionM"));
+  profs2d.push_back(dd.Profile2D({"p2_DPt_recYPt_pions", "Pt-resolution for reconstructed pions (#pi^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPions", "recPtGoodPions", "recDPtGoodPions"));
+  profs2d.push_back(dd.Profile2D({"p2_DPt_recYPt_kaonP", "Pt-resolution for reconstructed kaons (K^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonP", "recPtGoodKaonP", "recDPtGoodKaonP"));
+  profs2d.push_back(dd.Profile2D({"p2_DPt_recYPt_kaonM", "Pt-resolution for reconstructed kaons (K^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonM", "recPtGoodKaonM", "recDPtGoodKaonM"));
+  profs2d.push_back(dd.Profile2D({"p2_DPt_recYPt_kaons", "Pt-resolution for reconstructed kaons (K^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaons", "recPtGoodKaons", "recDPtGoodKaons"));
+  profs2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_proton", "Phi-resolution for reconstructed protons in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodProton", "recPtGoodProton", "recDPhiGoodProton"));
+  profs2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_pionP", "Phi-resolution for reconstructed pions (#pi^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionP", "recPtGoodPionP", "recDPhiGoodPionP"));
+  profs2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_pionM", "Phi-resolution for reconstructed pions (#pi^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionM", "recPtGoodPionM", "recDPhiGoodPionM"));
+  profs2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_pions", "Phi-resolution for reconstructed pions (#pi^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPions", "recPtGoodPions", "recDPhiGoodPions"));
+  profs2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_kaonP", "Phi-resolution for reconstructed kaons (K^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonP", "recPtGoodKaonP", "recDPhiGoodKaonP"));
+  profs2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_kaonM", "Phi-resolution for reconstructed kaons (K^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonM", "recPtGoodKaonM", "recDPhiGoodKaonM"));
+  profs2d.push_back(dd.Profile2D({"p2_DPhi_recYPt_kaons", "Phi-resolution for reconstructed kaons (K^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaons", "recPtGoodKaons", "recDPhiGoodKaons"));
+  profs2d.push_back(dd.Profile2D({"p2_DY_recYPt_proton", "Ycm-resolution for reconstructed protons in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodProton", "recPtGoodProton", "recDYGoodProton"));
+  profs2d.push_back(dd.Profile2D({"p2_DY_recYPt_pionP", "Ycm-resolution for reconstructed pions (#pi^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionP", "recPtGoodPionP", "recDYGoodPionP"));
+  profs2d.push_back(dd.Profile2D({"p2_DY_recYPt_pionM", "Ycm-resolution for reconstructed pions (#pi^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionM", "recPtGoodPionM", "recDYGoodPionM"));
+  profs2d.push_back(dd.Profile2D({"p2_DY_recYPt_pions", "Ycm-resolution for reconstructed pions (#pi^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPions", "recPtGoodPions", "recDYGoodPions"));
+  profs2d.push_back(dd.Profile2D({"p2_DY_recYPt_kaonP", "Ycm-resolution for reconstructed kaons (K^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonP", "recPtGoodKaonP", "recDYGoodKaonP"));
+  profs2d.push_back(dd.Profile2D({"p2_DY_recYPt_kaonM", "Ycm-resolution for reconstructed kaons (K^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonM", "recPtGoodKaonM", "recDYGoodKaonM"));
+  profs2d.push_back(dd.Profile2D({"p2_DY_recYPt_kaons", "Ycm-resolution for reconstructed kaons (K^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaons", "recPtGoodKaons", "recDYGoodKaons"));
+  profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_proton", "Eta-resolution for reconstructed protons in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodProton", "recPtGoodProton", "recDEtaGoodProton"));
+  profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_pionP", "Eta-resolution for reconstructed pions (#pi^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionP", "recPtGoodPionP", "recDEtaGoodPionP"));
+  profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_pionM", "Eta-resolution for reconstructed pions (#pi^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPionM", "recPtGoodPionM", "recDEtaGoodPionM"));
+  profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_pions", "Eta-resolution for reconstructed pions (#pi^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodPions", "recPtGoodPions", "recDEtaGoodPions"));
+  profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_kaonP", "Eta-resolution for reconstructed kaons (K^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonP", "recPtGoodKaonP", "recDEtaGoodKaonP"));
+  profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_kaonM", "Eta-resolution for reconstructed kaons (K^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonM", "recPtGoodKaonM", "recDEtaGoodKaonM"));
+  profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_kaons", "Eta-resolution for reconstructed kaons (K^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaons", "recPtGoodKaons", "recDEtaGoodKaons"));
 
   // Write QA histograms to the output file
   fOut.cd();
@@ -369,7 +423,9 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
     hist->Write();
   for (auto& hist:hists2d)
     hist->Write();
-  for (auto& hist:prof2d)
+  for (auto& hist:profs)
+    hist->Write();
+  for (auto& hist:profs2d)
     hist->Write();
   fOut.Close();
 
