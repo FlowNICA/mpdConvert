@@ -20,7 +20,7 @@ source /lustre/home/user/p/parfenov/Soft/mpdroot/install/config/env.sh
 export JOB_ID=${SLURM_ARRAY_JOB_ID}
 export TASK_ID=${SLURM_ARRAY_TASK_ID}
 
-export ecm=3.5 #2.5, 3.0, 3.5 GeV
+export ecm=2.5 #2.5, 3.0, 3.5 GeV
 export nucl_mass=209 #209 for Bi+Bi
 
 export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/mpdtree_urqmd_bibi_${ecm}gev_mpdfxt.list

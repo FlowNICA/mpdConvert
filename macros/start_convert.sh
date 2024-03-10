@@ -20,7 +20,7 @@ source /lustre/home/user/p/parfenov/Soft/mpdroot/install/config/env.sh
 export JOB_ID=${SLURM_ARRAY_JOB_ID}
 export TASK_ID=${SLURM_ARRAY_TASK_ID}
 
-export ecm=3.0
+export ecm=3.5
 
 export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/urqmd_bibi_${ecm}gev_mpdfxt.list
 #export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/phsd_bibi_${ecm}gev.list
