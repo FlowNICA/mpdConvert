@@ -196,6 +196,18 @@ try {
   throw e;
 }
 
+RVec<float> recTpcDedx(const RVec<MpdTrack> &tracks)
+try{
+  vector<float> dedx;
+  for (auto& track:tracks) {
+    dedx.push_back(track.GetdEdXTPC());
+  }
+  return dedx;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
 vector<float> trackP(const RVec<MpdTrack> &tracks)
 try {
   vector<float> momenta;
@@ -905,11 +917,12 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     .Define("recoGlobalNhitsFit", recNhitsFit, {"recoGlobalTracks"})
     .Define("recoGlobalNhitsPoss", recNhitsPoss, {"recoGlobalTracks"})
     .Define("recoGlobalChi2",  recChi2, {"recoGlobalTracks"})
-    .Define("recoGlobalP", trackP, {"recoGlobalTracks"})
+    //.Define("recoGlobalP", trackP, {"recoGlobalTracks"})
     .Define("recoGlobalTofFlag", recHasTofHit, {"recoGlobalTracks"})
     .Define("recoGlobalCharge",recCharge,{"recoGlobalTracks"})
     .Define("recoGlobalDca", recDca, {"recoGlobalTracks"})
     .Define("recoGlobalTofMass2", recTofMass2, {"recoGlobalTracks"})
+    .Define("recoGlobalTpcDedx", recTpcDedx, {"recoGlobalTracks"})
     //.Define("recoGlobalParamFirst", trGlobalFirstParam, {"recoGlobalTracks"})
     //.Define("recoGlobalParamLast", trGlobalLastParam, {"recoGlobalTracks"})
     //.Define("recoKalmanFirst", getKalmanFirst, {"TpcKalmanTrack"})
