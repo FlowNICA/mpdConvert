@@ -1,219 +1,4 @@
-using namespace ROOT;
-using namespace ROOT::Math;
-using namespace ROOT::RDF;
-using fourVector=LorentzVector<PtEtaPhiE4D<double>>;
-
-TChain* makeChain(string& filename, const char* treename) {
-  cout << "Adding files to chain:" << endl;
-  TChain *chain = new TChain(treename);
-  if (filename.rfind(".root") < filename.size())
-    chain->Add(filename.data());
-  else {
-    TFileCollection fc("fc", "", filename.c_str());
-    chain->AddFileInfoList((TCollection*)fc.GetList());
-  }
-  chain->ls();
-  return chain;
-}
-
-RVec<float> getPt(vector<fourVector> _p)
-{
-  vector <float> pt_;
-  for (auto& mom:_p)
-    pt_.push_back(mom.Pt());
-  return pt_;
-}
-
-RVec<float> getP(vector<fourVector> _p)
-{
-  vector <float> p_;
-  for (auto& mom:_p)
-    p_.push_back(mom.P());
-  return p_;
-}
-
-RVec<float> getRigidity(vector<fourVector> _p,RVec<short> _q)
-{
-  vector <float> pq_;
-  for (int i=0; i<_p.size(); ++i){
-    auto mom = _p.at(i);
-    auto charge = _q.at(i);
-    if (charge != 0)
-      pq_.push_back(mom.P()/(float)(charge));
-    else
-      pq_.push_back(-9999.);
-  }
-  return pq_;
-}
-
-RVec<float> getEta(vector<fourVector> _p)
-{
-  vector <float> pt_;
-  for (auto& mom:_p)
-    pt_.push_back(mom.Eta());
-  return pt_;
-}
-
-RVec<float> getPhi(vector<fourVector> _p)
-{
-  vector <float> pt_;
-  for (auto& mom:_p)
-    pt_.push_back(mom.Phi());
-  return pt_;
-}
-
-RVec<float> getDcaMag(vector<XYZVector> _dca)
-{
-  vector <float> dca_;
-  for (auto& dca:_dca)
-    dca_.push_back(sqrt(dca.Mag2()));
-  return dca_;
-}
-
-RVec<int> isRecPrim(RVec<float> _dca)
-{
-  vector<int> vec_prim;
-  for (auto& dca:_dca){
-    int prim = (dca < 1.) ? 1 : 0;
-    vec_prim.push_back(prim);
-  }
-  return vec_prim;
-}
-
-RVec<int> isGoodTrack(vector<fourVector> _p, RVec<int> _nhits, RVec<float> _dca)
-{
-  vector<int> vec_tracks;
-  for(int i=0; i<_p.size(); ++i) {
-    auto mom = _p.at(i);
-    auto nhits = std::round(_nhits.at(i));
-    auto dca = _dca.at(i);
-    if (nhits > 16 && dca < 100.)
-      vec_tracks.push_back(1);
-    else
-      vec_tracks.push_back(0);
-  }
-  return vec_tracks;
-}
-
-RVec<int> isGoodTrack4Protons(vector<fourVector> _p, RVec<int> _nhits, RVec<float> _dca)
-{
-  vector<int> vec_tracks;
-  for(int i=0; i<_p.size(); ++i) {
-    auto mom = _p.at(i);
-    auto nhits = std::round(_nhits.at(i));
-    auto dca = _dca.at(i);
-    if (nhits > 27 && dca < 1.)
-      vec_tracks.push_back(1);
-    else
-      vec_tracks.push_back(0);
-  }
-  return vec_tracks;
-}
-
-RVec<int> isGoodTrack4Pions(vector<fourVector> _p, RVec<int> _nhits, RVec<float> _dca)
-{
-  vector<int> vec_tracks;
-  for(int i=0; i<_p.size(); ++i) {
-    auto mom = _p.at(i);
-    auto nhits = std::round(_nhits.at(i));
-    auto dca = _dca.at(i);
-    if (nhits > 22 && dca < 3.5)
-      vec_tracks.push_back(1);
-    else
-      vec_tracks.push_back(0);
-  }
-  return vec_tracks;
-}
-
-RVec<int> isGoodPosEta(vector<fourVector> _p, RVec<int> _isGoodTrack)
-{
-  vector<int> vec_tracks;
-  for(int i=0; i<_p.size(); ++i) {
-    auto mom = _p.at(i);
-    auto isgood = _isGoodTrack.at(i);
-    if (isgood && mom.Eta() > 0)
-      vec_tracks.push_back(1);
-    else
-      vec_tracks.push_back(0);
-  }
-  return vec_tracks;
-}
-
-RVec<int> isGoodNegEta(vector<fourVector> _p, RVec<int> _isGoodTrack)
-{
-  vector<int> vec_tracks;
-  for(int i=0; i<_p.size(); ++i) {
-    auto mom = _p.at(i);
-    auto isgood = _isGoodTrack.at(i);
-    if (isgood && mom.Eta() < 0)
-      vec_tracks.push_back(1);
-    else
-      vec_tracks.push_back(0);
-  }
-  return vec_tracks;
-}
-
-RVec<float> trGoodPid(RVec<float> _tracks, RVec<int> _isGoodTrack, RVec<int> _isPrimary, RVec<int> _isPid){
-  std::vector<float> vec_tracks(_tracks.size(), -999.);
-  for (int i=0; i<_tracks.size(); ++i){
-    auto track = _tracks.at(i);
-    auto goodtrack = std::round(_isGoodTrack.at(i));
-    auto isPrimary = std::round(_isPrimary.at(i));
-    auto isPid = std::round(_isPid.at(i));
-    if (goodtrack && isPrimary && isPid)
-      vec_tracks.at(i) = track;
-  }
-  return vec_tracks;
-}
-
-RVec<float> trPrimPid(RVec<float> _tracks, RVec<int> _isPrimary, RVec<int> _isPid){
-  std::vector<float> vec_tracks(_tracks.size(), -999.);
-  for (int i=0; i<_tracks.size(); ++i){
-    auto track = _tracks.at(i);
-    auto isPrimary = std::round(_isPrimary.at(i));
-    auto isPid = std::round(_isPid.at(i));
-    if (isPrimary && isPid)
-      vec_tracks.at(i) = track;
-  }
-  return vec_tracks;
-}
-
-RVec<float> trPrimFHCalPid(RVec<float> _tracks, RVec<int> _isPrimary, RVec<int> _isPid, RVec<bool> _hasHit){
-  std::vector<float> vec_tracks(_tracks.size(), -999.);
-  for (int i=0; i<_tracks.size(); ++i){
-    auto track = _tracks.at(i);
-    auto isPrimary = std::round(_isPrimary.at(i));
-    auto isPid = std::round(_isPid.at(i));
-    auto hit = _hasHit.at(i);
-    if (isPrimary && isPid && hit)
-      vec_tracks.at(i) = track;
-  }
-  return vec_tracks;
-}
-
-RVec<float> getGoodTrackResolutionPid(RVec<float> _reco_tracks, RVec<float> _sim_tracks, RVec<int> _sim_ids, RVec<int> _isGoodTrack, RVec<int> _isPrimary, RVec<int> _isPid)
-{
-  std::vector<float> vec_delta(_reco_tracks.size(), -999.);
-  for (int i = 0; i < _sim_ids.size(); ++i){
-    auto rec_track = _reco_tracks.at(i);
-    auto sim_id = _sim_ids.at(i);
-    if (sim_id >= _sim_tracks.size()){
-      continue;
-    }
-    if (sim_id < 0){
-      continue;
-    }
-    auto sim_track = _sim_tracks.at(sim_id);
-    auto delta = (sim_track <= std::numeric_limits<float>::min() || sim_track == -999. || rec_track == -999.) ? -999. : abs(rec_track - sim_track)/sim_track;
-    auto goodtrack = std::round(_isGoodTrack.at(i));
-    auto isPrimary = std::round(_isPrimary.at(i));
-    auto isPid = std::round(_isPid.at(i));
-    if (goodtrack && isPrimary && isPid)
-      vec_delta.at(i) = delta; 
-  }
-  return vec_delta;
-}
-
+#include "FunctionsQa.C"
 void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", std::string str_nucleus_mass="209")
 {
   TStopwatch timer;
@@ -237,13 +22,17 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
   vector <RResultPtr<::TH1D >> hists;
   vector <RResultPtr<::TH2D >> hists2d;
   vector <RResultPtr<::TH3D >> hists3d;
+  vector <RResultPtr<::THnD >> histsnd;
   vector <RResultPtr<::TProfile >> profs;
   vector <RResultPtr<::TProfile2D >> profs2d;
 
   auto dd = d
-    .Filter("mcB<16.")
+    .Filter("mcB<20.")
+    .Define("simB", "mcB")
+    .Define("refMult", getRefMultFxt, {"recoGlobalMom", "recoGlobalNhits"})
     .Define("recDca", getDcaMag, {"recoGlobalDca"})
-    .Define("isGoodTrack", isGoodTrack, {"recoGlobalMom", "recoGlobalNhits", "recDca"})
+    .Define("isTOF", "recoGlobalTofFlag")
+    .Define("isGoodTrack", isGoodTrack, {"recoGlobalMom", "recoGlobalNhits", "recDca", "isTOF"})
     .Define("isGoodTrackProton", isGoodTrack4Protons, {"recoGlobalMom", "recoGlobalNhits", "recDca"})
     .Define("isGoodTrackPionP", isGoodTrack4Pions, {"recoGlobalMom", "recoGlobalNhits", "recDca"})
     .Define("isGoodTrackPionM", isGoodTrack4Pions, {"recoGlobalMom", "recoGlobalNhits", "recDca"})
@@ -261,7 +50,6 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
     .Define("isKaonP", "recoGlobalSimPdg==321")
     .Define("isKaonM", "recoGlobalSimPdg==-321")
     .Define("isKaons", "abs(recoGlobalSimPdg)==321")
-    .Define("isTOF", "recoGlobalTofFlag")
     .Define("recPt", getPt, {"recoGlobalMom"})
     .Define("recP", getP, {"recoGlobalMom"})
     .Define("recRigidity", getRigidity, {"recoGlobalMom", "recoGlobalCharge"})
@@ -417,6 +205,8 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
   hists.push_back(dd.Histo1D({"h1_recVtx_X","Reconstructed vertex X;x (cm)",500,-1,1}, "recoPrimVtxX")); 
   hists.push_back(dd.Histo1D({"h1_recVtx_Y","Reconstructed vertex Y;y (cm)",500,-1,1}, "recoPrimVtxY")); 
   hists.push_back(dd.Histo1D({"h1_recVtx_Z","Reconstructed vertex Z;z (cm)",500,-1,1}, "recoPrimVtxZ"));
+  hists.push_back(dd.Histo1D({"h1_refMult", "Reconstructed N_{ch};N_{ch}",1000,0.,1000.}, "refMult"));
+  hists.push_back(dd.Histo1D({"h1_simB", "Simulated b;b, fm",200,0.,20.}, "simB"));
   profs.push_back(dd.Profile1D({"p1_DPt_recNhits_proton", "Pt-resolution for reconstructed protons vs. Nhits;N_{hits};#deltap_{T}", 50, 0., 50., -998., 1000.}, "recoGlobalNhits", "recDPtGoodProton"));
   profs.push_back(dd.Profile1D({"p1_DPt_recDCA_proton", "Pt-resolution for reconstructed protons vs. DCA;DCA (cm);#deltap_{T}", 50, 0., 5., -998., 1000.}, "recDca", "recDPtGoodProton"));
   profs.push_back(dd.Profile1D({"p1_DPt_recChi2_proton", "Pt-resolution for reconstructed protons vs. Chi2;#chi_{2}/ndf;#deltap_{T}", 5000, 0., 5000., -998., 1000.}, "recoGlobalChi2", "recDPtGoodProton"));
@@ -427,8 +217,11 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
   profs.push_back(dd.Profile1D({"p1_DPt_recDCA_pionM", "Pt-resolution for reconstructed pions (#pi^{-}) vs. DCA;DCA (cm);#deltap_{T}", 50, 0., 5., -998., 1000.}, "recDca", "recDPtGoodPionM"));
   profs.push_back(dd.Profile1D({"p1_DPt_recChi2_pionM", "Pt-resolution for reconstructed pions (#pi^{-}) vs. Chi2;#chi_{2}/ndf;#deltap_{T}", 5000, 0., 5000., -998., 1000.}, "recoGlobalChi2", "recDPtGoodPionM"));
   hists2d.push_back(dd.Histo2D({"h2_recVtx_XY","Reconstructed vertex XY;x (cm);y (cm)",500,-1,1,500,-1,1}, "recoPrimVtxX", "recoPrimVtxY"));
-  hists2d.push_back(dd.Histo2D({"h2_recDedxPq", "Reconstructed dEdx vs P/q;p/q, GeV/c;dEdx, a.u.", 500, 0., 5., 500, 0., 5.e3}, "recRigidity", "recTpcDedx", "isGoodTrack"));
-  hists2d.push_back(dd.Histo2D({"h2_recM2Pq", "Reconstructed m^{2}_{TOF} vs P/q;p/q, GeV/c;m^{2}, (GeV/c^{2})^{2}", 500, 0., 5., 200, 0., 2.}, "recRigidity", "recTofMass2", "isGoodTrack"));
+  hists2d.push_back(dd.Histo2D({"h2_simBrefMult", "b vs N_{ch};N_{ch};b, fm",1000,0.,1000.,200,0.,20.}, "refMult", "simB"));
+  hists2d.push_back(dd.Histo2D({"h2_recDedxPq", "Reconstructed dEdx vs P/q;p/q, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recRigidity", "recTpcDedx", "isGoodTrack"));
+  hists2d.push_back(dd.Histo2D({"h2_recDedxPt", "Reconstructed dEdx vs P_{T};p_{T}, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recPt", "recTpcDedx", "isGoodTrack"));
+  hists2d.push_back(dd.Histo2D({"h2_recM2Pq", "Reconstructed m^{2}_{TOF} vs P/q;p/q, GeV/c;m^{2}, (GeV/c^{2})^{2}", 1000, -5., 5., 220, -0.2, 2.}, "recRigidity", "recTofMass2", "isGoodTrack"));
+  hists2d.push_back(dd.Histo2D({"h2_recEtaPt", "Reconstructed #eta vs p_{T}", 1000, -5., 5., 500, 0., 5.}, "recEta", "recPt"));
   hists2d.push_back(dd.Histo2D({"h2_simYPt_inFHCal_proton", "Simulated protons Ycm-pT in FHCal;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "simYGoodFHCalProton", "simPtGoodFHCalProton"));
   hists2d.push_back(dd.Histo2D({"h2_simYPt_inFHCal_pionP", "Simulated pions (#pi^{+}) Ycm-pT in FHCal;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "simYGoodFHCalPionP", "simPtGoodFHCalPionP"));
   hists2d.push_back(dd.Histo2D({"h2_simYPt_inFHCal_pionM", "Simulated pions (#pi^{+}) Ycm-pT in FHCal;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "simYGoodFHCalPionM", "simPtGoodFHCalPionM"));
@@ -495,8 +288,7 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
   profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_kaonP", "Eta-resolution for reconstructed kaons (K^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonP", "recPtGoodKaonP", "recDEtaGoodKaonP"));
   profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_kaonM", "Eta-resolution for reconstructed kaons (K^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonM", "recPtGoodKaonM", "recDEtaGoodKaonM"));
   profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_kaons", "Eta-resolution for reconstructed kaons (K^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaons", "recPtGoodKaons", "recDEtaGoodKaons"));
-  hists3d.push_back(dd.Histo3D({"h3_recDedxM2Pq", "Reconstructed dEdx vs m^{2}_{TOF} vs P_{T};m^{2}, (GeV/c^{2})^{2};dEdx, a.u.;p_{T}, GeV/c", 400, 0., 2., 500, 0., 5.e3, 500, 0., 5.}, "recTofMass2", "recTpcDedx", "recPt"));
-
+  hists3d.push_back(dd.Histo3D({"h3_recDedxM2Pq", "Reconstructed dEdx vs m^{2}_{TOF} vs P/q;m^{2}, (GeV/c^{2})^{2};dEdx, a.u.;p/q, GeV/c", 220, -0.2, 2., 500, 0., 5.e3, 500, -5., 5.}, "recTofMass2", "recTpcDedx", "recRigidity", "isGoodTrack"));
   // Write QA histograms to the output file
   fOut.cd();
   for (auto& hist:hists)
