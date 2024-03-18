@@ -120,11 +120,13 @@ void runQaMpd_step1(string fileIn="", string fileOut="", std::string cm_energy="
   hists2d.push_back(dd.Histo2D({"h2_recVtx_XY","Reconstructed vertex XY;x (cm);y (cm)",500,-1,1,500,-1,1}, "recoPrimVtxX", "recoPrimVtxY"));
   hists2d.push_back(dd.Histo2D({"h2_simBrefMult", "b vs N_{ch};N_{ch};b, fm",1000,0.,1000.,200,0.,20.}, "refMult", "simB"));
   hists2d.push_back(dd.Histo2D({"h2_recDedxPq", "Reconstructed dEdx vs P/q;p/q, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recRigidity", "recTpcDedx", "isGoodTrack"));
+  hists2d.push_back(dd.Histo2D({"h2_recDedxPqReverse", "Reconstructed dEdx vs -P/q;-p/q, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recRigidityReverse", "recTpcDedx", "isGoodTrack"));
   hists2d.push_back(dd.Histo2D({"h2_recDedxPt", "Reconstructed dEdx vs P_{T};p_{T}, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recPt", "recTpcDedx", "isGoodTrack"));
   hists2d.push_back(dd.Histo2D({"h2_recM2Pq", "Reconstructed m^{2}_{TOF} vs P/q;p/q, GeV/c;m^{2}, (GeV/c^{2})^{2}", 1000, -5., 5., 220, -0.2, 2.}, "recRigidity", "recTofMass2", "isGoodTrack"));
   hists2d.push_back(dd.Histo2D({"h2_recM2Pt", "Reconstructed m^{2}_{TOF} vs p_{T};p_{T}, GeV/c;m^{2}, (GeV/c^{2})^{2}", 500, 0., 5., 220, -0.2, 2.}, "recPt", "recTofMass2", "isGoodTrack"));
   hists2d.push_back(dd.Histo2D({"h2_recEtaPt", "Reconstructed #eta vs p_{T}", 1000, -5., 5., 500, 0., 5.}, "recEta", "recPt"));
   hists3d.push_back(dd.Histo3D({"h3_recDedxM2Pq", "Reconstructed dEdx vs m^{2}_{TOF} vs P/q;m^{2}, (GeV/c^{2})^{2};dEdx, a.u.;p/q, GeV/c", 220, -0.2, 2., 500, 0., 5.e3, 500, -5., 5.}, "recTofMass2", "recTpcDedx", "recRigidity", "isGoodTrack"));
+  hists3d.push_back(dd.Histo3D({"h3_recDedxM2PqReverse", "Reconstructed dEdx vs m^{2}_{TOF} vs -P/q;m^{2}, (GeV/c^{2})^{2};dEdx, a.u.;-p/q, GeV/c", 220, -0.2, 2., 500, 0., 5.e3, 500, -5., 5.}, "recTofMass2", "recTpcDedx", "recRigidityReverse", "isGoodTrack"));
   // Write QA histograms to the output file
   fOut.cd();
   for (auto& hist:hists)

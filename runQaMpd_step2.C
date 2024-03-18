@@ -1,5 +1,5 @@
 #include "FunctionsQa.C"
-void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", std::string str_nucleus_mass="209")
+void runQaMpd_step2(string fileIn="", string fileOut="", std::string cm_energy="2.5", std::string str_nucleus_mass="209", std::string fileStep1="")
 {
   TStopwatch timer;
   timer.Start();
@@ -15,6 +15,44 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
 
   std::cout << "sqrtSnn = " << sNN << " GeV; T = " << T << "A GeV; Y_BEAM = " << Y_BEAM << std::endl;
   std::cout << "A = " << nucleus_mass << "; R = " << NUCLEUS_RADIUS << std::endl;
+
+  auto fiStep1 = new TFile(fileStep1.c_str(), "read");
+  auto f1_dedx_pip = (TF1*)fiStep1->Get("f1_dedx_pip");
+  auto f1_dedx_p = (TF1*)fiStep1->Get("f1_dedx_proton");
+  auto f1_dedx_sigm_pip = (TF1*)fiStep1->Get("f1_dedx_sigm_pip");
+  auto f1_dedx_sigm_p = (TF1*)fiStep1->Get("f1_dedx_sigm_p");
+  auto f1_m2_sigm_pip = (TF1*)fiStep1->Get("f1_m2_sigm_pip");
+  auto f1_m2_sigm_p = (TF1*)fiStep1->Get("f1_m2_sigm_p");
+
+  if (!fiStep1){
+    std::cerr << "ERROR: Cannot open step1 QA file: " << fileStep1.c_str() << std::endl;
+    return;
+  }
+
+  if (!f1_dedx_pip){
+    std::cerr << "ERROR: Cannot find f1_dedx_pip in the step1 QA file!" << std::endl;
+    return;
+  }
+  if (!f1_dedx_p){
+    std::cerr << "ERROR: Cannot find f1_dedx_proton in the step1 QA file!" << std::endl;
+    return;
+  }
+  if (!f1_dedx_sigm_pip){
+    std::cerr << "ERROR: Cannot find f1_dedx_sigm_pip in the step1 QA file!" << std::endl;
+    return;
+  }
+  if (!f1_dedx_sigm_p){
+    std::cerr << "ERROR: Cannot find f1_dedx_sigm_p in the step1 QA file!" << std::endl;
+    return;
+  }
+  if (!f1_m2_sigm_pip){
+    std::cerr << "ERROR: Cannot find f1_m2_sigm_pip in the step1 QA file!" << std::endl;
+    return;
+  }
+  if (!f1_m2_sigm_p){
+    std::cerr << "ERROR: Cannot find f1_m2_sigm_p in the step1 QA file!" << std::endl;
+    return;
+  }
 
   ROOT::RDataFrame d("t", fileIn.c_str());
   TFile fOut(fileOut.c_str(),"recreate");
@@ -43,10 +81,10 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
     .Define("isPrimary", isRecPrim, {"recDca"})
     .Define("recTpcDedx", "recoGlobalTpcDedx")
     .Define("recTofMass2", "recoGlobalTofMass2")
-    .Define("isProton", "recoGlobalSimPdg==2212")
-    .Define("isPionP", "recoGlobalSimPdg==211")
-    .Define("isPionM", "recoGlobalSimPdg==-211")
-    .Define("isPions", "abs(recoGlobalSimPdg)==211")
+    //.Define("isProton", "recoGlobalSimPdg==2212")
+    //.Define("isPionP", "recoGlobalSimPdg==211")
+    //.Define("isPionM", "recoGlobalSimPdg==-211")
+    //.Define("isPions", "abs(recoGlobalSimPdg)==211")
     .Define("isKaonP", "recoGlobalSimPdg==321")
     .Define("isKaonM", "recoGlobalSimPdg==-321")
     .Define("isKaons", "abs(recoGlobalSimPdg)==321")
@@ -78,6 +116,179 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
       }
       return vec_y;
     },{"recoGlobalSimPdg", "recoGlobalMom"})
+    .Define("nsigDedxProton", [f1_dedx_p, f1_dedx_sigm_p]( RVec<float> vec_Pq, RVec<float> vec_dedx ){
+      RVec<float> vec_nsig;
+      vec_nsig.reserve( vec_dedx.size() );
+      for( int i=0; i<vec_dedx.size(); ++i){
+        auto pq = vec_Pq.at(i);
+        auto dedx = vec_dedx.at(i);
+        if (pq<0.3)
+          vec_nsig.push_back( -999. );
+        else
+          vec_nsig.push_back( (dedx - f1_dedx_p->Eval(pq))/(f1_dedx_p->Eval(pq)*f1_dedx_sigm_p->Eval(pq)) );
+      }
+      return vec_nsig;
+    },{"recRigidity", "recTpcDedx"})
+    .Define("nsigM2Proton", [f1_m2_sigm_p]( RVec<float> vec_Pq, RVec<float> vec_m2, RVec<bool> vec_tof ){
+      RVec<float> vec_nsig;
+      vec_nsig.reserve( vec_m2.size() );
+      for( int i=0; i<vec_m2.size(); ++i){
+        auto tof = vec_tof.at(i);
+        auto pq = vec_Pq.at(i);
+        auto m2 = vec_m2.at(i);
+        auto m2_p = pow(TDatabasePDG::Instance()->GetParticle(2212)->Mass(), 2);
+        if (pq<0.3 || !tof)
+          vec_nsig.push_back( -999. );
+        else
+          vec_nsig.push_back( (m2 - m2_p)/f1_m2_sigm_p->Eval(pq) );
+      }
+      return vec_nsig;
+    },{"recRigidity", "recTofMass2", "isTOF"})
+    .Define("nsigDedxPionP", [f1_dedx_pip, f1_dedx_sigm_pip]( RVec<float> vec_Pq, RVec<float> vec_dedx ){
+      RVec<float> vec_nsig;
+      vec_nsig.reserve( vec_dedx.size() );
+      for( int i=0; i<vec_dedx.size(); ++i){
+        auto pq = vec_Pq.at(i);
+        auto dedx = vec_dedx.at(i);
+        if (abs(pq)<0.1 || pq<0.)
+          vec_nsig.push_back( -999. );
+        else
+          vec_nsig.push_back( (dedx - f1_dedx_pip->Eval(pq))/(f1_dedx_pip->Eval(pq)*f1_dedx_sigm_pip->Eval(pq)) );
+      }
+      return vec_nsig;
+    },{"recRigidity", "recTpcDedx"})
+    .Define("nsigM2PionP", [f1_m2_sigm_pip]( RVec<float> vec_Pq, RVec<float> vec_m2, RVec<bool> vec_tof ){
+      RVec<float> vec_nsig;
+      vec_nsig.reserve( vec_m2.size() );
+      for( int i=0; i<vec_m2.size(); ++i){
+        auto tof = vec_tof.at(i);
+        auto pq = vec_Pq.at(i);
+        auto m2 = vec_m2.at(i);
+        auto m2_p = pow(TDatabasePDG::Instance()->GetParticle(211)->Mass(), 2);
+        if (abs(pq)<0.1 || pq<0. || !tof)
+          vec_nsig.push_back( -999. );
+        else
+          vec_nsig.push_back( (m2 - m2_p)/f1_m2_sigm_pip->Eval(pq) );
+      }
+      return vec_nsig;
+    },{"recRigidity", "recTofMass2", "isTOF"})
+    .Define("nsigDedxPionM", [f1_dedx_pip, f1_dedx_sigm_pip]( RVec<float> vec_Pq, RVec<float> vec_dedx ){
+      RVec<float> vec_nsig;
+      vec_nsig.reserve( vec_dedx.size() );
+      for( int i=0; i<vec_dedx.size(); ++i){
+        auto pq = (float)-1.*vec_Pq.at(i);
+        auto dedx = vec_dedx.at(i);
+        if (abs(pq)<0.1 || pq<0.)
+          vec_nsig.push_back( -999. );
+        else
+          vec_nsig.push_back( (dedx - f1_dedx_pip->Eval(pq))/(f1_dedx_pip->Eval(pq)*f1_dedx_sigm_pip->Eval(pq)) );
+      }
+      return vec_nsig;
+    },{"recRigidity", "recTpcDedx"})
+    .Define("nsigM2PionM", [f1_m2_sigm_pip]( RVec<float> vec_Pq, RVec<float> vec_m2, RVec<bool> vec_tof ){
+      RVec<float> vec_nsig;
+      vec_nsig.reserve( vec_m2.size() );
+      for( int i=0; i<vec_m2.size(); ++i){
+        auto tof = vec_tof.at(i);
+        auto pq = (float)-1.*vec_Pq.at(i);
+        auto m2 = vec_m2.at(i);
+        auto m2_p = pow(TDatabasePDG::Instance()->GetParticle(211)->Mass(), 2);
+        if (abs(pq)<0.1 || pq<0. || !tof)
+          vec_nsig.push_back( -999. );
+        else
+          vec_nsig.push_back( (m2 - m2_p)/f1_m2_sigm_pip->Eval(pq) );
+      }
+      return vec_nsig;
+    },{"recRigidity", "recTofMass2", "isTOF"})
+    .Define("nsigDedxPions", [f1_dedx_pip, f1_dedx_sigm_pip]( RVec<float> vec_Pq, RVec<float> vec_dedx ){
+      RVec<float> vec_nsig;
+      vec_nsig.reserve( vec_dedx.size() );
+      for( int i=0; i<vec_dedx.size(); ++i){
+        auto pq = abs(vec_Pq.at(i));
+        auto dedx = vec_dedx.at(i);
+        if (pq<0.1)
+          vec_nsig.push_back( -999. );
+        else
+          vec_nsig.push_back( (dedx - f1_dedx_pip->Eval(pq))/(f1_dedx_pip->Eval(pq)*f1_dedx_sigm_pip->Eval(pq)) );
+      }
+      return vec_nsig;
+    },{"recRigidity", "recTpcDedx"})
+    .Define("nsigM2Pions", [f1_m2_sigm_pip]( RVec<float> vec_Pq, RVec<float> vec_m2, RVec<bool> vec_tof ){
+      RVec<float> vec_nsig;
+      vec_nsig.reserve( vec_m2.size() );
+      for( int i=0; i<vec_m2.size(); ++i){
+        auto tof = vec_tof.at(i);
+        auto pq = abs(vec_Pq.at(i));
+        auto m2 = vec_m2.at(i);
+        auto m2_p = pow(TDatabasePDG::Instance()->GetParticle(211)->Mass(), 2);
+        if (pq<0.1 || !tof)
+          vec_nsig.push_back( -999. );
+        else
+          vec_nsig.push_back( (m2 - m2_p)/f1_m2_sigm_pip->Eval(pq) );
+      }
+      return vec_nsig;
+    },{"recRigidity", "recTofMass2", "isTOF"})
+    .Define("isProton", []( RVec<float> vec_nsigDedx_p, RVec<float> vec_nsigM2_p, RVec<float> vec_nsigDedx_pi, RVec<float> vec_nsigM2_pi ){
+      RVec<int> vec_pid;
+      vec_pid.reserve( vec_nsigDedx_p.size() );
+      for( int i=0; i<vec_nsigDedx_p.size(); ++i){
+        auto dedx_p = vec_nsigDedx_p.at(i);
+        auto m2_p = vec_nsigM2_p.at(i);
+        auto dedx_pi = vec_nsigDedx_pi.at(i);
+        auto m2_pi = vec_nsigM2_pi.at(i);
+        if ( sqrt(pow(dedx_p,2)+pow(m2_p,2)) < 2. &&
+             sqrt(pow(dedx_pi,2)+pow(m2_pi,2)) > 3.)
+          vec_pid.push_back(1);
+        else
+          vec_pid.push_back(0);
+      }
+      return vec_pid;
+    },{"nsigDedxProton", "nsigM2Proton", "nsigDedxPionP", "nsigM2PionP"})
+    .Define("isPionP", []( RVec<float> vec_nsigDedx_p, RVec<float> vec_nsigM2_p, RVec<float> vec_nsigDedx_pi, RVec<float> vec_nsigM2_pi ){
+      RVec<int> vec_pid;
+      vec_pid.reserve( vec_nsigDedx_p.size() );
+      for( int i=0; i<vec_nsigDedx_p.size(); ++i){
+        auto dedx_p = vec_nsigDedx_p.at(i);
+        auto m2_p = vec_nsigM2_p.at(i);
+        auto dedx_pi = vec_nsigDedx_pi.at(i);
+        auto m2_pi = vec_nsigM2_pi.at(i);
+        if ( sqrt(pow(dedx_p,2)+pow(m2_p,2)) > 3. &&
+             sqrt(pow(dedx_pi,2)+pow(m2_pi,2)) < 2.)
+          vec_pid.push_back(1);
+        else
+          vec_pid.push_back(0);
+      }
+      return vec_pid;
+    },{"nsigDedxProton", "nsigM2Proton", "nsigDedxPionP", "nsigM2PionP"})
+    .Define("isPionM", []( RVec<float> vec_nsigDedx, RVec<float> vec_nsigM2 ){
+      RVec<int> vec_pid;
+      vec_pid.reserve( vec_nsigDedx.size() );
+      for( int i=0; i<vec_nsigDedx.size(); ++i){
+        auto dedx = vec_nsigDedx.at(i);
+        auto m2 = vec_nsigM2.at(i);
+        if ( sqrt(pow(dedx,2)+pow(m2,2)) < 2. )
+          vec_pid.push_back(1);
+        else
+          vec_pid.push_back(0);
+      }
+      return vec_pid;
+    },{"nsigDedxPionM", "nsigM2PionM"})
+    .Define("isPions", []( RVec<float> vec_nsigDedx_p, RVec<float> vec_nsigM2_p, RVec<float> vec_nsigDedx_pi, RVec<float> vec_nsigM2_pi ){
+      RVec<int> vec_pid;
+      vec_pid.reserve( vec_nsigDedx_p.size() );
+      for( int i=0; i<vec_nsigDedx_p.size(); ++i){
+        auto dedx_p = vec_nsigDedx_p.at(i);
+        auto m2_p = vec_nsigM2_p.at(i);
+        auto dedx_pi = vec_nsigDedx_pi.at(i);
+        auto m2_pi = vec_nsigM2_pi.at(i);
+        if ( sqrt(pow(dedx_p,2)+pow(m2_p,2)) > 3. &&
+             sqrt(pow(dedx_pi,2)+pow(m2_pi,2)) < 2.)
+          vec_pid.push_back(1);
+        else
+          vec_pid.push_back(0);
+      }
+      return vec_pid;
+    },{"nsigDedxProton", "nsigM2Proton", "nsigDedxPions", "nsigM2Pions"})
     .Define("recPtGoodProton", trGoodPid, {"recPt", "isGoodTrackProton", "isPrimary", "isProton"})
     .Define("recPtGoodPionP", trGoodPid, {"recPt", "isGoodTrackPionP", "isPrimary", "isPionP"})
     .Define("recPtGoodPionM", trGoodPid, {"recPt", "isGoodTrackPionM", "isPrimary", "isPionM"})
@@ -219,8 +430,15 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
   hists2d.push_back(dd.Histo2D({"h2_recVtx_XY","Reconstructed vertex XY;x (cm);y (cm)",500,-1,1,500,-1,1}, "recoPrimVtxX", "recoPrimVtxY"));
   hists2d.push_back(dd.Histo2D({"h2_simBrefMult", "b vs N_{ch};N_{ch};b, fm",1000,0.,1000.,200,0.,20.}, "refMult", "simB"));
   hists2d.push_back(dd.Histo2D({"h2_recDedxPq", "Reconstructed dEdx vs P/q;p/q, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recRigidity", "recTpcDedx", "isGoodTrack"));
-  hists2d.push_back(dd.Histo2D({"h2_recDedxPt", "Reconstructed dEdx vs P_{T};p_{T}, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recPt", "recTpcDedx", "isGoodTrack"));
+  hists2d.push_back(dd.Histo2D({"h2_recDedxPqProton", "Reconstructed dEdx vs P/q for protons;p/q, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recRigidity", "recTpcDedx", "isProton"));
+  hists2d.push_back(dd.Histo2D({"h2_recDedxPqPionP", "Reconstructed dEdx vs P/q for #pi^{+};p/q, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recRigidity", "recTpcDedx", "isPionP"));
+  hists2d.push_back(dd.Histo2D({"h2_recDedxPqPionM", "Reconstructed dEdx vs P/q for #pi^{-};p/q, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recRigidity", "recTpcDedx", "isPionM"));
+  hists2d.push_back(dd.Histo2D({"h2_recDedxPqPions", "Reconstructed dEdx vs P/q for #pi^{#pm};p/q, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recRigidity", "recTpcDedx", "isPions"));
   hists2d.push_back(dd.Histo2D({"h2_recM2Pq", "Reconstructed m^{2}_{TOF} vs P/q;p/q, GeV/c;m^{2}, (GeV/c^{2})^{2}", 1000, -5., 5., 220, -0.2, 2.}, "recRigidity", "recTofMass2", "isGoodTrack"));
+  hists2d.push_back(dd.Histo2D({"h2_recM2PqProton", "Reconstructed m^{2}_{TOF} vs P/q for protons;p/q, GeV/c;m^{2}, (GeV/c^{2})^{2}", 1000, -5., 5., 220, -0.2, 2.}, "recRigidity", "recTofMass2", "isProton"));
+  hists2d.push_back(dd.Histo2D({"h2_recM2PqPionP", "Reconstructed m^{2}_{TOF} vs P/q for #pi^{+};p/q, GeV/c;m^{2}, (GeV/c^{2})^{2}", 1000, -5., 5., 220, -0.2, 2.}, "recRigidity", "recTofMass2", "isPionP"));
+  hists2d.push_back(dd.Histo2D({"h2_recM2PqPionM", "Reconstructed m^{2}_{TOF} vs P/q for #pi^{-};p/q, GeV/c;m^{2}, (GeV/c^{2})^{2}", 1000, -5., 5., 220, -0.2, 2.}, "recRigidity", "recTofMass2", "isPionM"));
+  hists2d.push_back(dd.Histo2D({"h2_recM2PqPions", "Reconstructed m^{2}_{TOF} vs P/q for #pi^{#pm};p/q, GeV/c;m^{2}, (GeV/c^{2})^{2}", 1000, -5., 5., 220, -0.2, 2.}, "recRigidity", "recTofMass2", "isPions"));
   hists2d.push_back(dd.Histo2D({"h2_recEtaPt", "Reconstructed #eta vs p_{T}", 1000, -5., 5., 500, 0., 5.}, "recEta", "recPt"));
   hists2d.push_back(dd.Histo2D({"h2_simYPt_inFHCal_proton", "Simulated protons Ycm-pT in FHCal;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "simYGoodFHCalProton", "simPtGoodFHCalProton"));
   hists2d.push_back(dd.Histo2D({"h2_simYPt_inFHCal_pionP", "Simulated pions (#pi^{+}) Ycm-pT in FHCal;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "simYGoodFHCalPionP", "simPtGoodFHCalPionP"));
@@ -288,7 +506,7 @@ void runQaMpd(string fileIn="", string fileOut="", std::string cm_energy="2.5", 
   profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_kaonP", "Eta-resolution for reconstructed kaons (K^{+}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonP", "recPtGoodKaonP", "recDEtaGoodKaonP"));
   profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_kaonM", "Eta-resolution for reconstructed kaons (K^{-}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaonM", "recPtGoodKaonM", "recDEtaGoodKaonM"));
   profs2d.push_back(dd.Profile2D({"p2_DEta_recYPt_kaons", "Eta-resolution for reconstructed kaons (K^{#pm}) in Ycm-pT plane;y_{CM}; p_{T} (GeV/c)", 300, -1.5, 1.5, 300, 0., 3.}, "recYGoodKaons", "recPtGoodKaons", "recDEtaGoodKaons"));
-  hists3d.push_back(dd.Histo3D({"h3_recDedxM2Pq", "Reconstructed dEdx vs m^{2}_{TOF} vs P/q;m^{2}, (GeV/c^{2})^{2};dEdx, a.u.;p/q, GeV/c", 220, -0.2, 2., 500, 0., 5.e3, 500, -5., 5.}, "recTofMass2", "recTpcDedx", "recRigidity", "isGoodTrack"));
+  //hists3d.push_back(dd.Histo3D({"h3_recDedxM2Pq", "Reconstructed dEdx vs m^{2}_{TOF} vs P/q;m^{2}, (GeV/c^{2})^{2};dEdx, a.u.;p/q, GeV/c", 220, -0.2, 2., 500, 0., 5.e3, 500, -5., 5.}, "recTofMass2", "recTpcDedx", "recRigidity", "isGoodTrack"));
   // Write QA histograms to the output file
   fOut.cd();
   for (auto& hist:hists)
