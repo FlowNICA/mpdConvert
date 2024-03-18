@@ -1,5 +1,8 @@
 void getPID(std::string inFile_qa_step1, std::string outFile_pid)
 {
+  TStopwatch timer;
+  timer.Start();
+  
   std::cout << "Starting PID" << std::endl;
   const int niter = 5;
 
@@ -191,29 +194,29 @@ void getPID(std::string inFile_qa_step1, std::string outFile_pid)
     vf1_m2_1gaus_p.push_back( std::make_unique<TF1>(Form("f1_m2_1gaus_p_pqbin%i", i-firstbin), "gaus", m2_pdg.at(2)-0.1, m2_pdg.at(2)+0.1) );
     vf1_m2_1gaus_pip.push_back( std::make_unique<TF1>(Form("f1_m2_1gaus_pip_pqbin%i", i-firstbin), "gaus", m2_pdg.at(0)-0.1, m2_pdg.at(0)+0.1) );
     vf1_m2_1gaus_kap.push_back( std::make_unique<TF1>(Form("f1_m2_1gaus_kap_pqbin%i", i-firstbin), "gaus", m2_pdg.at(1)-0.1, m2_pdg.at(1)+0.1) );
-    vf1_m2_1gaus_p.at(i-firstbin)->SetParameter(1, m2_pdg.at(2));
-    vf1_m2_1gaus_pip.at(i-firstbin)->SetParameter(1, m2_pdg.at(1));
-    vf1_m2_1gaus_kap.at(i-firstbin)->SetParameter(1, m2_pdg.at(0));
+    vf1_m2_1gaus_p.at(i-firstbin)->FixParameter(1, m2_pdg.at(2));
+    vf1_m2_1gaus_pip.at(i-firstbin)->FixParameter(1, m2_pdg.at(1));
+    vf1_m2_1gaus_kap.at(i-firstbin)->FixParameter(1, m2_pdg.at(0));
 
     vf1_m2_2gaus_p.push_back( std::make_unique<TF1>(Form("f1_m2_2gaus_p_pqbin%i", i-firstbin), "gaus(0)+gaus(3)", m2_pdg.at(2)-0.3, m2_pdg.at(2)+0.3) );
     vf1_m2_2gaus_pip.push_back( std::make_unique<TF1>(Form("f1_m2_2gaus_pip_pqbin%i", i-firstbin), "gaus(0)+gaus(3)", m2_pdg.at(0)-0.2, m2_pdg.at(0)+0.2) );
     vf1_m2_2gaus_kap.push_back( std::make_unique<TF1>(Form("f1_m2_2gaus_kap_pqbin%i", i-firstbin), "gaus(0)+gaus(3)", m2_pdg.at(1)-0.1, m2_pdg.at(1)+0.1) );
-    vf1_m2_2gaus_p.at(i-firstbin)->SetParameter(1, m2_pdg.at(2));
-    vf1_m2_2gaus_p.at(i-firstbin)->SetParameter(4, m2_pdg.at(2));
-    vf1_m2_2gaus_pip.at(i-firstbin)->SetParameter(1, m2_pdg.at(0));
-    vf1_m2_2gaus_pip.at(i-firstbin)->SetParameter(4, m2_pdg.at(0));
-    vf1_m2_2gaus_kap.at(i-firstbin)->SetParameter(1, m2_pdg.at(1));
-    vf1_m2_2gaus_kap.at(i-firstbin)->SetParameter(4, m2_pdg.at(1));
+    vf1_m2_2gaus_p.at(i-firstbin)->FixParameter(1, m2_pdg.at(2));
+    vf1_m2_2gaus_p.at(i-firstbin)->FixParameter(4, m2_pdg.at(2));
+    vf1_m2_2gaus_pip.at(i-firstbin)->FixParameter(1, m2_pdg.at(0));
+    vf1_m2_2gaus_pip.at(i-firstbin)->FixParameter(4, m2_pdg.at(0));
+    vf1_m2_2gaus_kap.at(i-firstbin)->FixParameter(1, m2_pdg.at(1));
+    vf1_m2_2gaus_kap.at(i-firstbin)->FixParameter(4, m2_pdg.at(1));
 
     vf1_m2_2gaus_all.push_back( std::make_unique<TF1>(Form("f1_m2_2gaus_all_pqbin%i", i-firstbin),
                                                       "gaus(0)+gaus(3)+gaus(6)+gaus(9)+gaus(12)+gaus(15)",
                                                       m2_pdg.at(0)-0.2, m2_pdg.at(2)*1.2) );
-    vf1_m2_2gaus_all.at(i-firstbin)->SetParameter(1, m2_pdg.at(0));
-    vf1_m2_2gaus_all.at(i-firstbin)->SetParameter(4, m2_pdg.at(0));
-    vf1_m2_2gaus_all.at(i-firstbin)->SetParameter(7, m2_pdg.at(1));
-    vf1_m2_2gaus_all.at(i-firstbin)->SetParameter(10, m2_pdg.at(1));
-    vf1_m2_2gaus_all.at(i-firstbin)->SetParameter(13, m2_pdg.at(2));
-    vf1_m2_2gaus_all.at(i-firstbin)->SetParameter(16, m2_pdg.at(2));
+    vf1_m2_2gaus_all.at(i-firstbin)->FixParameter(1, m2_pdg.at(0));
+    vf1_m2_2gaus_all.at(i-firstbin)->FixParameter(4, m2_pdg.at(0));
+    vf1_m2_2gaus_all.at(i-firstbin)->FixParameter(7, m2_pdg.at(1));
+    vf1_m2_2gaus_all.at(i-firstbin)->FixParameter(10, m2_pdg.at(1));
+    vf1_m2_2gaus_all.at(i-firstbin)->FixParameter(13, m2_pdg.at(2));
+    vf1_m2_2gaus_all.at(i-firstbin)->FixParameter(16, m2_pdg.at(2));
 
     vsigm_m2_pip_x.push_back(h2_m2pq->GetXaxis()->GetBinCenter(i));
     vsigm_m2_pip_ex.push_back(h2_m2pq->GetXaxis()->GetBinWidth(i)*0.5);
@@ -346,4 +349,7 @@ void getPID(std::string inFile_qa_step1, std::string outFile_pid)
     vf1_m2_2gaus_all.at(i)->Write();
   }
   fo->Close();
+
+  timer.Stop();
+  timer.Print();
 }
