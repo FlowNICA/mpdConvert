@@ -1,5 +1,6 @@
 #include "FunctionsQa.C"
-void runQaMpd_step2(string fileIn="", string fileOut="", std::string cm_energy="2.5", std::string str_nucleus_mass="209", std::string fileStep1="")
+
+void runQaMpd_step2(string fileIn="", string fileOut="", std::string cm_energy="2.5", std::string str_nucleus1_mass="209", std::string str_nucleus2_mass="209", std::string fileStep1="")
 {
   TStopwatch timer;
   timer.Start();
@@ -10,11 +11,14 @@ void runQaMpd_step2(string fileIn="", string fileOut="", std::string cm_energy="
   const double E = T + M;
   const double P = sqrt( E*E - M*M );
   const double Y_BEAM = 0.25 * log( (E + P) / (E - P) );
-  const double nucleus_mass = std::stod(str_nucleus_mass);
-  const double NUCLEUS_RADIUS = 1.25 * pow( nucleus_mass, 1.0 / 3.0 );
+  const double nucleus1_mass = std::stod(str_nucleus1_mass);
+  const double nucleus2_mass = std::stod(str_nucleus2_mass);
+  const double NUCLEUS1_RADIUS = 1.25 * pow( nucleus1_mass, 1.0 / 3.0 );
+  const double NUCLEUS2_RADIUS = 1.25 * pow( nucleus2_mass, 1.0 / 3.0 );
 
   std::cout << "sqrtSnn = " << sNN << " GeV; T = " << T << "A GeV; Y_BEAM = " << Y_BEAM << std::endl;
-  std::cout << "A = " << nucleus_mass << "; R = " << NUCLEUS_RADIUS << std::endl;
+  std::cout << "A1 = " << nucleus1_mass << "; R1 = " << NUCLEUS1_RADIUS << std::endl;
+  std::cout << "A2 = " << nucleus2_mass << "; R2 = " << NUCLEUS2_RADIUS << std::endl;
 
   auto fiStep1 = new TFile(fileStep1.c_str(), "read");
   auto f1_dedx_pip = (TF1*)fiStep1->Get("f1_dedx_pip");

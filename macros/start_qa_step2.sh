@@ -20,11 +20,15 @@ source /lustre/home/user/p/parfenov/Soft/mpdroot/install/config/env.sh
 export JOB_ID=${SLURM_ARRAY_JOB_ID}
 export TASK_ID=${SLURM_ARRAY_TASK_ID}
 
-export ecm=2.5 #2.5, 3.0, 3.5 GeV
-export nucl_mass=209 #209 for Bi+Bi
+export ecm=2.87 #2.5, 3.0, 3.5 GeV
+export nucl1_mass=154 #209 for Bi, 184 for W, 154 for Xe
+export nucl2_mass=154 #209 for Bi, 184 for W, 154 for Xe
+export system=xexe
+export programm=prod36
 
-export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/mpdtree_urqmd_bibi_${ecm}gev_mpdfxt.list
-export PID_FILE=/lustre/stor2/mephi/parfenov/mpdtree/OUT/qa_step1_mpdtree_urqmd_bibi_${ecm}gev_mpdfxt/pid.root
+export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/mpdtree_urqmd_${system}_${ecm}gev_${programm}.list
+#export PID_FILE=/lustre/stor2/mephi/parfenov/mpdtree/OUT/qa_step1_mpdtree_urqmd_xew_2.87gev_prod35/4781927/pid.root
+export PID_FILE=/lustre/stor2/mephi/parfenov/mpdtree/OUT/qa_step1_mpdtree_urqmd_xexe_2.87gev_prod36/4781950/pid.root
 
 export SHORTNAME1=`basename $FILELIST`
 export SHORTNAME11=${SHORTNAME1%.list}
@@ -60,7 +64,7 @@ echo "Output file: ${OUT_FILE}" &>> $OUT_LOG
 echo "PID file:    ${PID_FILE}" &>> $OUT_LOG
 
 cd ${TMP_DIR}
-time root -l -b -q runQaMpd_step2.C'("'${INFILE}'","'${OUT_FILE}'","'${ecm}'", "'${nucl_mass}'", "'${PID_FILE}'")' &>> $OUT_LOG
+time root -l -b -q runQaMpd_step2.C'("'${INFILE}'","'${OUT_FILE}'","'${ecm}'", "'${nucl1_mass}'", "'${nucl2_mass}'", "'${PID_FILE}'")' &>> $OUT_LOG
 
 rm -rfv ${TMP_DIR} &>> $OUT_LOG
 

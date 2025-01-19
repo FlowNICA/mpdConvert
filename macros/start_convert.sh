@@ -20,9 +20,14 @@ source /lustre/home/user/p/parfenov/Soft/mpdroot/install/config/env.sh
 export JOB_ID=${SLURM_ARRAY_JOB_ID}
 export TASK_ID=${SLURM_ARRAY_TASK_ID}
 
-export ecm=2.5
+#export ecm=3.5
+#export prefix=mpdfxt
+export ecm=2.87
+export prefix=req36
 
-export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/urqmd_bibi_${ecm}gev_mpdfxt.list
+export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/urqmd_xexe_${ecm}gev_${prefix}.list
+#export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/urqmd_xew_${ecm}gev_${prefix}.list
+#export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/urqmd_bibi_${ecm}gev_${prefix}.list
 #export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/phsd_bibi_${ecm}gev.list
 
 export GEOFILE=/lustre/home/user/p/parfenov/Soft/mpdroot/install/geometry/zdc_oldnames_7sect_v1_no_overlaps_w_pipe_magnet.root
@@ -31,6 +36,7 @@ export SHORTNAME11=${SHORTNAME1%.list}
 export LABEL=${SHORTNAME11}
 
 export INFILE=`sed "${TASK_ID}q;d" ${FILELIST}`
+echo "input: $INFILE"
 
 if [[ -f "$INFILE" ]]; then
 export DATE=${JOB_ID} # or `date '+%Y%m%d_%H%M%S'`
