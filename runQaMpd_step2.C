@@ -417,11 +417,14 @@ void runQaMpd_step2(string fileIn="", string fileOut="", std::string cm_energy="
   dd.Foreach([](ULong64_t evtId){if (evtId % 100 == 0) cout << "\r" << evtId;}, {"rdfentry_"});
 
   // Make lists of histograms for QA
-  hists.push_back(dd.Histo1D({"h1_recVtx_X","Reconstructed vertex X;x (cm)",500,-1,1}, "recoPrimVtxX")); 
-  hists.push_back(dd.Histo1D({"h1_recVtx_Y","Reconstructed vertex Y;y (cm)",500,-1,1}, "recoPrimVtxY")); 
-  hists.push_back(dd.Histo1D({"h1_recVtx_Z","Reconstructed vertex Z;z (cm)",500,-1,1}, "recoPrimVtxZ"));
+  hists.push_back(dd.Histo1D({"h1_recVtx_X","Reconstructed vertex X;x (cm)",500,-10,10}, "recoPrimVtxX")); 
+  hists.push_back(dd.Histo1D({"h1_recVtx_Y","Reconstructed vertex Y;y (cm)",500,-10,10}, "recoPrimVtxY")); 
+  hists.push_back(dd.Histo1D({"h1_recVtx_Z","Reconstructed vertex Z;z (cm)",5000,-100,100}, "recoPrimVtxZ"));
   hists.push_back(dd.Histo1D({"h1_refMult", "Reconstructed N_{ch};N_{ch}",1000,0.,1000.}, "refMult"));
   hists.push_back(dd.Histo1D({"h1_simB", "Simulated b;b, fm",200,0.,20.}, "simB"));
+  hists.push_back(dd.Histo1D({"h1_simVtx_X","Simulated vertex X;x (cm)",500,-10,10}, "mcVtxX")); 
+  hists.push_back(dd.Histo1D({"h1_simVtx_Y","Simulated vertex Y;y (cm)",500,-10,10}, "mcVtxY")); 
+  hists.push_back(dd.Histo1D({"h1_simVtx_Z","Simulated vertex Z;z (cm)",5000,-100,100}, "mcVtxZ"));
   profs.push_back(dd.Profile1D({"p1_DPt_recNhits_proton", "Pt-resolution for reconstructed protons vs. Nhits;N_{hits};#deltap_{T}", 50, 0., 50., -998., 1000.}, "recoGlobalNhits", "recDPtGoodProton"));
   profs.push_back(dd.Profile1D({"p1_DPt_recDCA_proton", "Pt-resolution for reconstructed protons vs. DCA;DCA (cm);#deltap_{T}", 50, 0., 5., -998., 1000.}, "recDca", "recDPtGoodProton"));
   profs.push_back(dd.Profile1D({"p1_DPt_recChi2_proton", "Pt-resolution for reconstructed protons vs. Chi2;#chi_{2}/ndf;#deltap_{T}", 5000, 0., 5000., -998., 1000.}, "recoGlobalChi2", "recDPtGoodProton"));
@@ -431,7 +434,8 @@ void runQaMpd_step2(string fileIn="", string fileOut="", std::string cm_energy="
   profs.push_back(dd.Profile1D({"p1_DPt_recNhits_pionM", "Pt-resolution for reconstructed pions (#pi^{-}) vs. Nhits;N_{hits};#deltap_{T}", 50, 0., 50., -998., 1000.}, "recoGlobalNhits", "recDPtGoodPionM"));
   profs.push_back(dd.Profile1D({"p1_DPt_recDCA_pionM", "Pt-resolution for reconstructed pions (#pi^{-}) vs. DCA;DCA (cm);#deltap_{T}", 50, 0., 5., -998., 1000.}, "recDca", "recDPtGoodPionM"));
   profs.push_back(dd.Profile1D({"p1_DPt_recChi2_pionM", "Pt-resolution for reconstructed pions (#pi^{-}) vs. Chi2;#chi_{2}/ndf;#deltap_{T}", 5000, 0., 5000., -998., 1000.}, "recoGlobalChi2", "recDPtGoodPionM"));
-  hists2d.push_back(dd.Histo2D({"h2_recVtx_XY","Reconstructed vertex XY;x (cm);y (cm)",500,-1,1,500,-1,1}, "recoPrimVtxX", "recoPrimVtxY"));
+  hists2d.push_back(dd.Histo2D({"h2_recVtx_XY","Reconstructed vertex XY;x (cm);y (cm)",500,-10,10,500,-10,10}, "recoPrimVtxX", "recoPrimVtxY"));
+    hists2d.push_back(dd.Histo2D({"h2_recVtx_XY","Reconstructed vertex XY;x (cm);y (cm)",500,-10,10,500,-10,10}, "recoPrimVtxX", "recoPrimVtxY"));
   hists2d.push_back(dd.Histo2D({"h2_simBrefMult", "b vs N_{ch};N_{ch};b, fm",1000,0.,1000.,200,0.,20.}, "refMult", "simB"));
   hists2d.push_back(dd.Histo2D({"h2_recDedxPq", "Reconstructed dEdx vs P/q;p/q, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recRigidity", "recTpcDedx", "isGoodTrack"));
   hists2d.push_back(dd.Histo2D({"h2_recDedxPqProton", "Reconstructed dEdx vs P/q for protons;p/q, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recRigidity", "recTpcDedx", "isProton"));

@@ -115,12 +115,16 @@ void runQaMpd_step1(string fileIn="", string fileOut="", std::string cm_energy="
   dd.Foreach([](ULong64_t evtId){if (evtId % 100 == 0) cout << "\r" << evtId;}, {"rdfentry_"});
 
   // Make lists of histograms for QA
-  hists.push_back(dd.Histo1D({"h1_recVtx_X","Reconstructed vertex X;x (cm)",500,-1,1}, "recoPrimVtxX")); 
-  hists.push_back(dd.Histo1D({"h1_recVtx_Y","Reconstructed vertex Y;y (cm)",500,-1,1}, "recoPrimVtxY")); 
-  hists.push_back(dd.Histo1D({"h1_recVtx_Z","Reconstructed vertex Z;z (cm)",500,-1,1}, "recoPrimVtxZ"));
+  hists.push_back(dd.Histo1D({"h1_recVtx_X","Reconstructed vertex X;x (cm)",500,-10,10}, "recoPrimVtxX")); 
+  hists.push_back(dd.Histo1D({"h1_recVtx_Y","Reconstructed vertex Y;y (cm)",500,-10,10}, "recoPrimVtxY")); 
+  hists.push_back(dd.Histo1D({"h1_recVtx_Z","Reconstructed vertex Z;z (cm)",5000,-100,100}, "recoPrimVtxZ"));
   hists.push_back(dd.Histo1D({"h1_refMult", "Reconstructed N_{ch};N_{ch}",1000,0.,1000.}, "refMult"));
   hists.push_back(dd.Histo1D({"h1_simB", "Simulated b;b, fm",200,0.,20.}, "simB"));
-  hists2d.push_back(dd.Histo2D({"h2_recVtx_XY","Reconstructed vertex XY;x (cm);y (cm)",500,-1,1,500,-1,1}, "recoPrimVtxX", "recoPrimVtxY"));
+  hists.push_back(dd.Histo1D({"h1_simVtx_X","Simulated vertex X;x (cm)",500,-10,10}, "mcVtxX")); 
+  hists.push_back(dd.Histo1D({"h1_simVtx_Y","Simulated vertex Y;y (cm)",500,-10,10}, "mcVtxY")); 
+  hists.push_back(dd.Histo1D({"h1_simVtx_Z","Simulated vertex Z;z (cm)",5000,-100,100}, "mcVtxZ"));
+  hists2d.push_back(dd.Histo2D({"h2_recVtx_XY","Reconstructed vertex XY;x (cm);y (cm)",500,-10,10,500,-10,10}, "recoPrimVtxX", "recoPrimVtxY"));
+  hists2d.push_back(dd.Histo2D({"h2_simVtx_XY","Simulated vertex XY;x (cm);y (cm)",500,-10,10,500,-10,10}, "mcVtxX", "mcVtxY"));
   hists2d.push_back(dd.Histo2D({"h2_simBrefMult", "b vs N_{ch};N_{ch};b, fm",1000,0.,1000.,200,0.,20.}, "refMult", "simB"));
   hists2d.push_back(dd.Histo2D({"h2_recDedxPq", "Reconstructed dEdx vs P/q;p/q, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recRigidity", "recTpcDedx", "isGoodTrack"));
   hists2d.push_back(dd.Histo2D({"h2_recDedxPqReverse", "Reconstructed dEdx vs -P/q;-p/q, GeV/c;dEdx, a.u.", 1000, -5., 5., 500, 0., 5.e3}, "recRigidityReverse", "recTpcDedx", "isGoodTrack"));

@@ -1,21 +1,21 @@
 #!/bin/bash
 
 #
-#SBATCH -D /lustre/stor2/mephi/parfenov/TMP
-#SBATCH -J mpdQASt1
+#SBATCH -D /scratch1/parfenov/TMP/
+#SBATCH -J mpdQA
 #SBATCH --mem-per-cpu=2G
-#SBATCH -p mephi
+#SBATCH -p nica
 #SBATCH --time=02:30:00
 #SBATCH -a 1-1
 #
-#SBATCH -o /lustre/stor2/mephi/parfenov/TMP/slurm_mpdQA_%A_%a.out
-#SBATCH -e /lustre/stor2/mephi/parfenov/TMP/slurm_mpdQA_%A_%a.err
+#SBATCH -o /scratch1/parfenov/TMP/slurm_mpdconv_%A_%a.out
+#SBATCH -e /scratch1/parfenov/TMP/slurm_mpdconv_%A_%a.err
 #
 
 source /cvmfs/nica.jinr.ru/sw/os/login.sh latest
-module add mpddev/v23.09.23-1
-export MPDROOT=/lustre/home/user/p/parfenov/Soft/mpdroot/install
-source /lustre/home/user/p/parfenov/Soft/mpdroot/install/config/env.sh
+module add mpddev/
+export MPDROOT=/lhep/users/parfenov/Soft/mpdroot/install
+source /lhep/users/parfenov/Soft/mpdroot/install/config/env.sh
 
 export JOB_ID=${SLURM_ARRAY_JOB_ID}
 export TASK_ID=${SLURM_ARRAY_TASK_ID}
@@ -26,7 +26,8 @@ export nucl2_mass=154 #209 for Bi, 184 for W, 154 for Xe
 export system=xexe
 export programm=prod36
 
-export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/mpdtree_urqmd_${system}_${ecm}gev_${programm}.list
+export FILELIST=
+#export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/mpdtree_urqmd_${system}_${ecm}gev_${programm}.list
 #export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/mpdtree_urqmd_xew_${ecm}gev_prod35.list
 #export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/mpdtree_urqmd_bibi_${ecm}gev_mpdfxt.list
 
@@ -39,9 +40,10 @@ export INFILE=`sed "${TASK_ID}q;d" ${FILELIST}`
 if [[ -f "$INFILE" ]]; then
 export DATE=${JOB_ID} # or `date '+%Y%m%d_%H%M%S'`
 
-export MAIN_DIR=/lustre/home/user/p/parfenov/Soft/mpdConvert
-export OUT_DIR=/lustre/stor2/mephi/parfenov/mpdtree/OUT/qa_step1_${LABEL}/${DATE}
-#${MAIN_DIR}/OUT/qa_${LABEL}/${DATE}
+export MAIN_DIR=/lhep/users/parfenov/Soft/mpdConvert
+export MAIN_OUT=/scratch1/parfenov/Soft/mpdConverter
+export OUT_DIR=${MAIN_OUT}/OUT/qa_${LABEL}/${DATE}
+
 export OUT_FILE_DIR=${OUT_DIR}/files
 export OUT_LOG_DIR=${OUT_DIR}/log
 export OUT_FILE=${OUT_FILE_DIR}/qa_${LABEL}_${JOB_ID}_${TASK_ID}.root
