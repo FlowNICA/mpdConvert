@@ -30,11 +30,18 @@ RVec<MpdMCTrack> getAssocSimTracks(const RVec<MpdTrack> &mpdtracks, const RVec<M
   return goodtracks;
 }
 
-bool isGoodSimTrack(const MpdMCTrack &track, const RVec<MpdMCTrack> &assocMcTracks)
+bool isGoodSimTrack(const MpdMCTrack &track, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ)
 {
   //bool isInReco = (std::find(assocMcTracks.begin(), assocMcTracks.end(), track) == assocMcTracks.end());
   //if(isInReco && track.GetMotherId() != -1) return false;
-  if (track.GetNPoints(kTPC)<=0) return false; // only mc tracks that have at least 1 point in TPC!
+  //if (track.GetNPoints(kTPC)<=0) return false; // only mc tracks that have at least 1 point in TPC!
+  auto startX = track.GetStartX();
+  auto startY = track.GetStartY();
+  auto startZ = track.GetStartZ();
+  auto startR = sqrt(startX*startX+startY*startY);
+  auto dist = sqrt(pow(mcvtxX-startX,2)+pow(mcvtxY-startY,2)+pow(mcvtxZ-startZ,2));
+  //if ( startR>=140. && abs(startZ)>=140. ) return false; // reject mc tracks outside of the TPC region
+  if (dist>=5. && track.GetNPoints(kTPC)<=0) return false; // reject mc tracks with dist>5 cm and 0 mc points in TPC
   return true;
 }
 
@@ -54,11 +61,11 @@ int getCharge(int pdg)
     return pdg/10000%1000;
 }
 
-vector<fourVector> simMomentum(RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks)
+vector<fourVector> simMomentum(RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ)
 {
   vector<fourVector> momenta;
   for (auto& track:tracks) {
-    if (!isGoodSimTrack(track, assocMcTracks))
+    if (!isGoodSimTrack(track, assocMcTracks, mcvtxX, mcvtxY, mcvtxZ))
       continue;
     TVector3 mom;
     track.GetMomentum(mom);
@@ -68,44 +75,44 @@ vector<fourVector> simMomentum(RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> 
   return momenta;
 }
 
-vector<XYZTVector> simPosStart(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks)
+vector<XYZTVector> simPosStart(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ)
 {
   vector<XYZTVector> pos;
   for (auto& track:tracks) {
-    if (!isGoodSimTrack(track, assocMcTracks))
+    if (!isGoodSimTrack(track, assocMcTracks, mcvtxX, mcvtxY, mcvtxZ))
       continue;
     pos.push_back({track.GetStartX(),track.GetStartY(),track.GetStartZ(),track.GetStartT()});
   }
   return pos;
 }
 
-RVec<int> simMotherId(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks)
+RVec<int> simMotherId(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ)
 {
   vector<int> mothId;
   for (auto& track:tracks) {
-    if (!isGoodSimTrack(track, assocMcTracks))
+    if (!isGoodSimTrack(track, assocMcTracks, mcvtxX, mcvtxY, mcvtxZ))
       continue;
     mothId.push_back(track.GetMotherId());
   }
   return mothId;
 }
 
-RVec<int> simPdg(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks)
+RVec<int> simPdg(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ)
 {
   vector<int> pdg;
   for (auto& track:tracks) {
-    if (!isGoodSimTrack(track, assocMcTracks))
+    if (!isGoodSimTrack(track, assocMcTracks, mcvtxX, mcvtxY, mcvtxZ))
       continue;
     pdg.push_back(track.GetPdgCode());
   }
   return pdg;
 }
 
-RVec<bool> hasHitFhcal (const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks)
+RVec<bool> hasHitFhcal (const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ)
 {
   vector<bool> hasHit;
   for(auto &track:tracks) {
-    if (!isGoodSimTrack(track, assocMcTracks))
+    if (!isGoodSimTrack(track, assocMcTracks, mcvtxX, mcvtxY, mcvtxZ))
       continue;
     hasHit.push_back(track.GetNPoints(kZDC)>0);
   }
@@ -669,13 +676,13 @@ try{
   throw e;
 }
 
-RVec<int> recSimIndex(const RVec<MpdTrack> &recoTracks, const RVec<MpdMCTrack> simTracks, const RVec<MpdMCTrack> &assocMcTracks)
+RVec<int> recSimIndex(const RVec<MpdTrack> &recoTracks, const RVec<MpdMCTrack> simTracks, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ)
 try {
   vector<int> newIndex;
   int shift=0;
   int nSimTracks = simTracks.size();
   for (int i=0;i<nSimTracks;i++) {
-    if (!isGoodSimTrack(simTracks.at(i), assocMcTracks))
+    if (!isGoodSimTrack(simTracks.at(i), assocMcTracks, mcvtxX, mcvtxY, mcvtxZ))
     {
       shift++;
       newIndex.push_back(-1);
@@ -877,6 +884,111 @@ try {
   throw e;
 }
 
+RVec<int> emcClusterMult(const RVec<MpdEmcClusterKI> &emcClusters)
+//  number of towers in the cluster.
+// Recommended cut: mult > 1
+try{
+  vector<int> mults;
+  for (auto cluster:emcClusters) {
+    mults.push_back(cluster.GetMultiplicity());
+  }
+  return mults;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<float> emcClusterEnergy(const RVec<MpdEmcClusterKI> &emcClusters)
+//  reconstructed energy of the cluster
+// Recommended cut: e_corrected > 0.05 GeV
+try{
+  vector<float> energy;
+  float conv = 1.0/0.3065; // only ~30% energy is collected in EMC
+  for (auto cluster:emcClusters) {
+    float e_raw = cluster.GetE();
+    float e1 = e_raw*conv;
+    float x = e1;
+    if (x > 2.5) x = 2.5; // parametrization is available for up to 2.5 GeV
+    float corr[6] = { -1.321760e-002, 8.475623e-002, -9.007282e-002, 4.742396e-002, -1.279561e-002, 1.397394e-003 };
+    float corr_coeff = corr[0] + corr[1]*x + corr[2]*x*x + corr[3]*x*x*x + corr[4]*x*x*x*x + corr[5]*x*x*x*x*x;
+    float e_corrected = e1/(1. + corr_coeff); // corrected on non-linearity
+    energy.push_back(e_corrected);
+  }
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<XYZVector> emcClusterPos(const RVec<MpdEmcClusterKI> &emcClusters)
+//  XYZ position of the cluster in EMC in the global coordinate system.
+// Recommended: use XYZ coordinates to calculate pz,py,pz
+try{
+  vector<XYZVector> pos;
+  for (auto cluster:emcClusters) {
+    pos.push_back({cluster.GetX(), cluster.GetY(), cluster.GetZ()});
+  }
+  return pos;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<float> emcClusterChi2(const RVec<MpdEmcClusterKI> &emcClusters)
+//  Chi2/ndf of the cluster in EMC.
+// Recommended cuts: chi2<4 for photons
+try{
+  vector<float> chi;
+  for (auto cluster:emcClusters) {
+    chi.push_back(cluster.GetChi2());
+  }
+  return chi;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<float> emcClusterTime(const RVec<MpdEmcClusterKI> &emcClusters)
+//  simulated time of the shower.
+// Recommended cuts: chi2<4 for photons
+try{
+  vector<float> time;
+  TRandom RND;
+  for (auto cluster:emcClusters) {
+    // smear time with 0.5 ns gaus
+    time.push_back(RND.Gaus(cluster.GetTime()));
+  }
+  return time;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<float> emcClusterDPhi(const RVec<MpdEmcClusterKI> &emcClusters)
+//  distance from the cluster to the closets TPC track in dPhi.
+try{
+  vector<float> dphi;
+  for (auto cluster:emcClusters) {
+    dphi.push_back(cluster.GetDPhi());
+  }
+  return dphi;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
+RVec<float> emcClusterDZ(const RVec<MpdEmcClusterKI> &emcClusters)
+//  distance from the cluster to the closets TPC track in dZ.
+try{
+  vector<float> dz;
+  for (auto cluster:emcClusters) {
+    dz.push_back(cluster.GetDZ());
+  }
+  return dz;
+} catch( const std::exception& e ){
+  std::cout << __func__ << std::endl;
+  throw e;
+}
+
 void convertMPD(string inDst="", string fileOut="", string inGeo="")
 {
   TStopwatch timer;
@@ -936,18 +1048,25 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     .Define("recoKalmanCh2Ndf", kalmanChi2, {"TpcKalmanTrack"})
     .Define("recoKalmanMagField", magneticField, {"TpcKalmanTrack"})
     .Define("simAssocTracks", getAssocSimTracks, {"recoGlobalTracks", "MCTrack"})
-    .Define("simMom", simMomentum, {"MCTrack", "simAssocTracks"})
-    .Define("simPosStart", simPosStart, {"MCTrack", "simAssocTracks"})
-    .Define("simMotherId", simMotherId, {"MCTrack", "simAssocTracks"})
-    .Define("simPdg", simPdg, {"MCTrack", "simAssocTracks"})
+    .Define("simMom", simMomentum, {"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
+    .Define("simPosStart", simPosStart, {"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
+    .Define("simMotherId", simMotherId, {"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
+    .Define("simPdg", simPdg, {"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
     .Define("simCharge", simCharge, {"simPdg"})
-    .Define("simHasHitFHCal", hasHitFhcal, {"MCTrack", "simAssocTracks"})
-    .Define("recoGlobalSimIndex", recSimIndex, {"recoGlobalTracks", "MCTrack", "simAssocTracks"})
+    .Define("simHasHitFHCal", hasHitFhcal, {"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
+    .Define("recoGlobalSimIndex", recSimIndex, {"recoGlobalTracks", "MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
     .Define("recoGlobalSimPdg", trSimPdg, {"recoGlobalSimIndex", "simPdg"})
     .Define("recoGlobalSimMotherId", trSimMotherId, {"recoGlobalSimIndex", "simMotherId"})
     .Define("fhcalModPos", [fhcalModPos](){return fhcalModPos; })
     .Define("fhcalModId", moduleId, {"fhcalModPos"})
     .Define("fhcalModE",fhcalModE,{"ZdcDigi", "fhcalModId"})
+    .Define("emcMult", emcClusterMult,    {""})
+    .Define("emcEnergy", emcClusterEnergy,{""})
+    .Define("emcPos", emcClusterPos,      {""})
+    .Define("emcChi2", emcClusterChi2,    {""})
+    .Define("emcTime", emcClusterTime,    {""})
+    .Define("emcDPhi", emcClusterDPhi,    {""})
+    .Define("emcDZ", emcClusterDZ,        {""})
   ;
   dd.Foreach([](ULong64_t evtId){if (evtId % 100 == 0) cout << "\r" << evtId;}, {"rdfentry_"}); // progress display 
   cout << endl;
