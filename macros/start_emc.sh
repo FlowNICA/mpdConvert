@@ -2,14 +2,14 @@
 
 #
 #SBATCH -D /lustre/stor2/mephi/parfenov/TMP/
-#SBATCH -J ConvertMpd
+#SBATCH -J readEmcMpd
 #SBATCH --mem-per-cpu=4G
 #SBATCH -p cascade
 #SBATCH --time=36:30:00
 #SBATCH -a 1-1
 #
-#SBATCH -o /lustre/stor2/mephi/parfenov/TMP/slurm_mpdconv_%A_%a.out
-#SBATCH -e /lustre/stor2/mephi/parfenov/TMP/slurm_mpdconv_%A_%a.out
+#SBATCH -o /lustre/stor2/mephi/parfenov/TMP/slurm_mpdemc_%A_%a.out
+#SBATCH -e /lustre/stor2/mephi/parfenov/TMP/slurm_mpdemc_%A_%a.out
 #
 
 ls /cvmfs/nica.jinr.ru/
@@ -47,13 +47,13 @@ if [[ -f "$INFILE" ]]; then
 export DATE=${JOB_ID} # or `date '+%Y%m%d_%H%M%S'`
 
 export MAIN_DIR=/lustre/home/user/p/parfenov/Soft/mpdConvert
-export MAIN_OUT=/lustre/stor2/mephi/parfenov/mpdtree
+export MAIN_OUT=/lustre/stor2/mephi/parfenov/mpdemc
 export OUT_DIR=${MAIN_OUT}/OUT/${LABEL}/${DATE}
 
 export OUT_FILE_DIR=${OUT_DIR}/files
 export OUT_LOG_DIR=${OUT_DIR}/log
-export OUT_FILE=${OUT_FILE_DIR}/mpdtree_${LABEL}_${JOB_ID}_${TASK_ID}.root
-export OUT_LOG=${OUT_LOG_DIR}/mpdtree_${LABEL}_${JOB_ID}_${TASK_ID}.log
+export OUT_FILE=${OUT_FILE_DIR}/mpdemc_${LABEL}_${JOB_ID}_${TASK_ID}.root
+export OUT_LOG=${OUT_LOG_DIR}/mpdemc_${LABEL}_${JOB_ID}_${TASK_ID}.log
 
 export TMP=/lustre/stor2/mephi/parfenov/TMP
 export TMP_DIR=${TMP}/TMP_${JOB_ID}_${TASK_ID}
@@ -63,13 +63,13 @@ mkdir -p $OUT_LOG_DIR
 mkdir -p $TMP_DIR
 touch $OUT_LOG
 
-cp -v ${MAIN_DIR}/convertMPD.C ${TMP_DIR}/convertMPD.C &>> $OUT_LOG
+cp -v ${MAIN_DIR}/readEmcFromDst.C ${TMP_DIR}/readEmcFromDst.C &>> $OUT_LOG
 
 echo "Input file : ${INFILE}" &>> $OUT_LOG
 echo "Output file: ${OUT_FILE}" &>> $OUT_LOG
 
 cd ${TMP_DIR}
-time root -l -b -q convertMPD.C'("'${INFILE}'","'${OUT_FILE}'","'${GEOFILE}'")' &>> $OUT_LOG
+time root -l -b -q readEmcFromDst.C'("'${INFILE}'","'${OUT_FILE}'")' &>> $OUT_LOG
 
 rm -rfv ${TMP_DIR} &>> $OUT_LOG
 
