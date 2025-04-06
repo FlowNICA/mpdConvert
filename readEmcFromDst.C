@@ -1,4 +1,4 @@
-1;115;0cfloat EnCorr(float e);
+float EnCorr(float e);
 
 void readEmcFromDst(std::string inFileName, std::string outFileName)
 {
@@ -36,10 +36,12 @@ void readEmcFromDst(std::string inFileName, std::string outFileName)
     int N_b_bins = 200;
     int N_Efhcal_bins = 500;
     int N_Eemc_bins = 500;
+    int N_refmult_bins = 500;
 
     std::pair<double,double> b_bins = {0.,20.};
     std::pair<double,double> Efhcal_bins = {0.,10.};
     std::pair<double,double> Eemc_bins = {0., 100.};
+    std::pair<double,double> refmult_bins = {0.,500.};
 
     TH1D *h_primN_before = new TH1D("h_primN_before", "Number of primary neutrons before empty event cut", 500, 0., 500.);
     TH1D *h_primP_before = new TH1D("h_primP_before", "Number of primary protons before empty event cut", 500, 0., 500.);
@@ -51,6 +53,7 @@ void readEmcFromDst(std::string inFileName, std::string outFileName)
     TH1D *h_bimp = new TH1D("h_bimp","impact parameter", N_b_bins, b_bins.first, b_bins.second);
     TH1D *h_Efhcal = new TH1D("h_Efhcal", "E_{FHCal}", N_Efhcal_bins, Efhcal_bins.first, Efhcal_bins.second);
     TH1D *h_Eemc = new TH1D("h_Eemc", "E_{EMC}", N_Eemc_bins, Eemc_bins.first, Eemc_bins.second);
+    TH1D *h_refmult = new TH1D("h_refmult", "N{ch}", N_refmult_bins, refmult_bins.first, refmult_bins.second);
 
     TH2D *h2_b_Efhcal = new TH2D("h2_b_Efhcal", "b vs E_{FHCal};b, fm; E_{FHCal}, GeV", N_b_bins, b_bins.first, b_bins.second, N_Efhcal_bins, Efhcal_bins.first, Efhcal_bins.second);
     TH2D *h2_b_Eemc = new TH2D("h2_b_Eemc", "b vs E_{EMC};b, fm;E_{EMC}, GeV", 200, b_bins.first, b_bins.second, N_Eemc_bins, Eemc_bins.first, Eemc_bins.second);
@@ -91,7 +94,7 @@ void readEmcFromDst(std::string inFileName, std::string outFileName)
         h_primP_before->Fill(NmcProtons);
         h_primPart_before->Fill(Nparticles);
         //std::cout << "\tNeutrons = " << NmcNeutrons << std::endl;
-        if (NmcNeutrons == (A1+A2-(Z1+Z2))) continue;
+        if (NmcNeutrons == (A1+A2-(Z1+Z2))) continue; 
         //if (NmcProtons == (Z1+Z2)) continue;
         //if (Nparticles <= (A1+A2)) continue;
         h_primN_after->Fill(NmcNeutrons);
@@ -101,7 +104,14 @@ void readEmcFromDst(std::string inFileName, std::string outFileName)
         // Reco tracks loop
         for (Int_t iTrack = 0; iTrack < Ntracks; iTrack++) {
             MpdTrack* track = (MpdTrack*) event->GetGlobalTracks()->UncheckedAt(iTrack);
-            
+            if (!track) continue;
+            if (track->GetNofHits()<10) continue;
+            if (track->GetDCAX()>2.) continue;
+            if (track->GetDCAY()>2.) continue;
+            if (track->GetDCAZ()>2.) continue;
+            auto pt = track->GetPt();
+            auto eta = track->GetEta();
+            RefMult++;
         } // track loop
 
         // FHCal loop
@@ -134,6 +144,7 @@ void readEmcFromDst(std::string inFileName, std::string outFileName)
         h_bimp->Fill(bimp);
         h_Efhcal->Fill(total_fhcal_energy);
         h_Eemc->Fill(total_emc_energy);
+        h_refmult->Fill(RefMult);
         h2_b_Efhcal->Fill(bimp, total_fhcal_energy);
         h2_b_Eemc->Fill(bimp, total_emc_energy);
         h2_Efhcal_Eemc->Fill(total_fhcal_energy, total_emc_energy);
@@ -146,6 +157,7 @@ void readEmcFromDst(std::string inFileName, std::string outFileName)
     h_bimp->Write();
     h_Efhcal->Write();
     h_Eemc->Write();
+    h_refmult->Write();
 
     h2_b_Efhcal->Write();
     h2_b_Eemc->Write();
