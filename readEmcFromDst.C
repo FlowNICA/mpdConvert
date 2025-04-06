@@ -1,12 +1,12 @@
-float EnCorr(float e);
+1;115;0cfloat EnCorr(float e);
 
 void readEmcFromDst(std::string inFileName, std::string outFileName)
 {
   TStopwatch timer;
     timer.Start();
 
-    int A1 = 134, Z1 = 54; // Xe
-    int A2 = 184, Z2 = 74;// W
+    int A1 = 124, Z1 = 54; // Xe
+    int A2 = 184, Z2 = 74; // W
 
     std::cout << "A1 = " << A1 << ", Z1 = " << Z1 << ", N1 = " << (A1-Z1) << std::endl;
     std::cout << "A2 = " << A2 << ", Z2 = " << Z2 << ", N2 = " << (A2-Z2) << std::endl;
@@ -34,12 +34,19 @@ void readEmcFromDst(std::string inFileName, std::string outFileName)
     dstTree->SetBranchAddress("Vertex", &vertexes);
 
     int N_b_bins = 200;
-    int N_Efhcal_bins = 200;
-    int N_Eemc_bins = 200;
+    int N_Efhcal_bins = 500;
+    int N_Eemc_bins = 500;
 
     std::pair<double,double> b_bins = {0.,20.};
-    std::pair<double,double> Efhcal_bins = {0.,20.};
-    std::pair<double,double> Eemc_bins = {0., 200.};
+    std::pair<double,double> Efhcal_bins = {0.,10.};
+    std::pair<double,double> Eemc_bins = {0., 100.};
+
+    TH1D *h_primN_before = new TH1D("h_primN_before", "Number of primary neutrons before empty event cut", 500, 0., 500.);
+    TH1D *h_primP_before = new TH1D("h_primP_before", "Number of primary protons before empty event cut", 500, 0., 500.);
+    TH1D *h_primPart_before = new TH1D("h_primPart_before", "Number of primary particles before empty event cut", 1000, 0., 1000.);
+    TH1D *h_primN_after = new TH1D("h_primN_after", "Number of primary neutrons after empty event cut", 500, 0., 500.);
+    TH1D *h_primP_after = new TH1D("h_primP_after", "Number of primary protons after empty event cut", 500, 0., 500.);
+    TH1D *h_primPart_after = new TH1D("h_primPart_after", "Number of primary particles after empty event cut", 1000, 0., 1000.);
 
     TH1D *h_bimp = new TH1D("h_bimp","impact parameter", N_b_bins, b_bins.first, b_bins.second);
     TH1D *h_Efhcal = new TH1D("h_Efhcal", "E_{FHCal}", N_Efhcal_bins, Efhcal_bins.first, Efhcal_bins.second);
@@ -70,16 +77,26 @@ void readEmcFromDst(std::string inFileName, std::string outFileName)
         Int_t Ntracks = event->GetGlobalTracks()->GetEntriesFast();
         Int_t NMCtracks = MCTracks->GetEntriesFast();
 
-        Int_t RefMult = 0., NmcNeutrons = 0.;
+        Int_t RefMult = 0, NmcNeutrons = 0, NmcProtons = 0, Nparticles = 0;
 
         // Mc tracks loop
         for (Int_t iMcTrack = 0; iMcTrack < NMCtracks; iMcTrack++) {
           MpdMCTrack *mctrack = (MpdMCTrack*) MCTracks->UncheckedAt(iMcTrack);
           if (!mctrack) continue;
           if (mctrack->GetMotherId() == -1 && mctrack->GetPdgCode() == 2112) NmcNeutrons++;
+          if (mctrack->GetMotherId() == -1 && mctrack->GetPdgCode() == 2212) NmcProtons++;
+          if (mctrack->GetMotherId() == -1) Nparticles++;
         }
+        h_primN_before->Fill(NmcNeutrons);
+        h_primP_before->Fill(NmcProtons);
+        h_primPart_before->Fill(Nparticles);
         //std::cout << "\tNeutrons = " << NmcNeutrons << std::endl;
-        if (NmcNeutrons == (A1+A2-Z1-Z2)) continue;
+        if (NmcNeutrons == (A1+A2-(Z1+Z2))) continue;
+        //if (NmcProtons == (Z1+Z2)) continue;
+        //if (Nparticles <= (A1+A2)) continue;
+        h_primN_after->Fill(NmcNeutrons);
+        h_primP_after->Fill(NmcProtons);
+        h_primPart_after->Fill(Nparticles);
 
         // Reco tracks loop
         for (Int_t iTrack = 0; iTrack < Ntracks; iTrack++) {
@@ -135,6 +152,13 @@ void readEmcFromDst(std::string inFileName, std::string outFileName)
     h2_Efhcal_Eemc->Write();
 
     h3_b_Efhcal_Eemc->Write();
+
+    h_primN_before->Write();
+    h_primP_before->Write();
+    h_primPart_before->Write();
+    h_primN_after->Write();
+    h_primP_after->Write();
+    h_primPart_after->Write();
 
     fo->Close();
 

@@ -914,6 +914,7 @@ try{
     float e_corrected = e1/(1. + corr_coeff); // corrected on non-linearity
     energy.push_back(e_corrected);
   }
+  return energy;
 } catch( const std::exception& e ){
   std::cout << __func__ << std::endl;
   throw e;
@@ -1060,13 +1061,13 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     .Define("fhcalModPos", [fhcalModPos](){return fhcalModPos; })
     .Define("fhcalModId", moduleId, {"fhcalModPos"})
     .Define("fhcalModE",fhcalModE,{"ZdcDigi", "fhcalModId"})
-    .Define("emcMult", emcClusterMult,    {""})
-    .Define("emcEnergy", emcClusterEnergy,{""})
-    .Define("emcPos", emcClusterPos,      {""})
-    .Define("emcChi2", emcClusterChi2,    {""})
-    .Define("emcTime", emcClusterTime,    {""})
-    .Define("emcDPhi", emcClusterDPhi,    {""})
-    .Define("emcDZ", emcClusterDZ,        {""})
+    .Define("emcMult", emcClusterMult,    {"EmcCluster"})
+    .Define("emcEnergy", emcClusterEnergy,{"EmcCluster"})
+    .Define("emcPos", emcClusterPos,      {"EmcCluster"})
+    .Define("emcChi2", emcClusterChi2,    {"EmcCluster"})
+    .Define("emcTime", emcClusterTime,    {"EmcCluster"})
+    .Define("emcDPhi", emcClusterDPhi,    {"EmcCluster"})
+    .Define("emcDZ", emcClusterDZ,        {"EmcCluster"})
   ;
   dd.Foreach([](ULong64_t evtId){if (evtId % 100 == 0) cout << "\r" << evtId;}, {"rdfentry_"}); // progress display 
   cout << endl;
