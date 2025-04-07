@@ -884,13 +884,14 @@ try {
   throw e;
 }
 
-RVec<int> emcClusterMult(const RVec<MpdEmcClusterKI> &emcClusters)
+RVec<int> emcClusterMult(const TObjArray &emcClusters)
 //  number of towers in the cluster.
 // Recommended cut: mult > 1
 try{
   vector<int> mults;
-  for (auto cluster:emcClusters) {
-    mults.push_back(cluster.GetMultiplicity());
+  for (int i=0; i<emcClusters.GetEntries(); i++) {
+    auto cluster = (MpdEmcClusterKI*)emcClusters.At(i);
+    mults.push_back(cluster->GetMultiplicity());
   }
   return mults;
 } catch( const std::exception& e ){
@@ -898,14 +899,15 @@ try{
   throw e;
 }
 
-RVec<float> emcClusterEnergy(const RVec<MpdEmcClusterKI> &emcClusters)
+RVec<float> emcClusterEnergy(const TObjArray &emcClusters)
 //  reconstructed energy of the cluster
 // Recommended cut: e_corrected > 0.05 GeV
 try{
   vector<float> energy;
   float conv = 1.0/0.3065; // only ~30% energy is collected in EMC
-  for (auto cluster:emcClusters) {
-    float e_raw = cluster.GetE();
+  for (int i=0; i<emcClusters.GetEntries(); i++) {
+    auto cluster = (MpdEmcClusterKI*)emcClusters.At(i);
+    float e_raw = cluster->GetE();
     float e1 = e_raw*conv;
     float x = e1;
     if (x > 2.5) x = 2.5; // parametrization is available for up to 2.5 GeV
@@ -920,13 +922,14 @@ try{
   throw e;
 }
 
-RVec<XYZVector> emcClusterPos(const RVec<MpdEmcClusterKI> &emcClusters)
+vector<XYZVector> emcClusterPos(const TObjArray &emcClusters)
 //  XYZ position of the cluster in EMC in the global coordinate system.
 // Recommended: use XYZ coordinates to calculate pz,py,pz
 try{
   vector<XYZVector> pos;
-  for (auto cluster:emcClusters) {
-    pos.push_back({cluster.GetX(), cluster.GetY(), cluster.GetZ()});
+  for (int i=0; i<emcClusters.GetEntries(); i++) {
+    auto cluster = (MpdEmcClusterKI*)emcClusters.At(i);
+    pos.push_back({cluster->GetX(), cluster->GetY(), cluster->GetZ()});
   }
   return pos;
 } catch( const std::exception& e ){
@@ -934,13 +937,14 @@ try{
   throw e;
 }
 
-RVec<float> emcClusterChi2(const RVec<MpdEmcClusterKI> &emcClusters)
+RVec<float> emcClusterChi2(const TObjArray &emcClusters)
 //  Chi2/ndf of the cluster in EMC.
 // Recommended cuts: chi2<4 for photons
 try{
   vector<float> chi;
-  for (auto cluster:emcClusters) {
-    chi.push_back(cluster.GetChi2());
+  for (int i=0; i<emcClusters.GetEntries(); i++) {
+    auto cluster = (MpdEmcClusterKI*)emcClusters.At(i);
+    chi.push_back(cluster->GetChi2());
   }
   return chi;
 } catch( const std::exception& e ){
@@ -948,15 +952,16 @@ try{
   throw e;
 }
 
-RVec<float> emcClusterTime(const RVec<MpdEmcClusterKI> &emcClusters)
+RVec<float> emcClusterTime(const TObjArray &emcClusters)
 //  simulated time of the shower.
 // Recommended cuts: chi2<4 for photons
 try{
   vector<float> time;
   TRandom RND;
-  for (auto cluster:emcClusters) {
+  for (int i=0; i<emcClusters.GetEntries(); i++) {
+    auto cluster = (MpdEmcClusterKI*)emcClusters.At(i);
     // smear time with 0.5 ns gaus
-    time.push_back(RND.Gaus(cluster.GetTime()));
+    time.push_back(RND.Gaus(cluster->GetTime()));
   }
   return time;
 } catch( const std::exception& e ){
@@ -964,12 +969,13 @@ try{
   throw e;
 }
 
-RVec<float> emcClusterDPhi(const RVec<MpdEmcClusterKI> &emcClusters)
+RVec<float> emcClusterDPhi(const TObjArray &emcClusters)
 //  distance from the cluster to the closets TPC track in dPhi.
 try{
   vector<float> dphi;
-  for (auto cluster:emcClusters) {
-    dphi.push_back(cluster.GetDPhi());
+  for (int i=0; i<emcClusters.GetEntries(); i++) {
+    auto cluster = (MpdEmcClusterKI*)emcClusters.At(i);
+    dphi.push_back(cluster->GetDPhi());
   }
   return dphi;
 } catch( const std::exception& e ){
@@ -977,12 +983,13 @@ try{
   throw e;
 }
 
-RVec<float> emcClusterDZ(const RVec<MpdEmcClusterKI> &emcClusters)
+RVec<float> emcClusterDZ(const TObjArray &emcClusters)
 //  distance from the cluster to the closets TPC track in dZ.
 try{
   vector<float> dz;
-  for (auto cluster:emcClusters) {
-    dz.push_back(cluster.GetDZ());
+  for (int i=0; i<emcClusters.GetEntries(); i++) {
+    auto cluster = (MpdEmcClusterKI*)emcClusters.At(i);
+    dz.push_back(cluster->GetDZ());
   }
   return dz;
 } catch( const std::exception& e ){
