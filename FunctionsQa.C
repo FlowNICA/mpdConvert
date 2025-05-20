@@ -113,6 +113,16 @@ RVec<float> getDcaMag(vector<XYZVector> _dca)
   return dca_;
 }
 
+RVec<float> getStartPosDist(vector<XYZTVector> _pos, double vtx_x, double vtx_y, double vtx_z)
+{
+  vector<float> vec_d;
+  for (auto& pos:_pos){
+    float dist = sqrt( pow(pos.X()-vtx_x, 2)+pow(pos.Y()-vtx_y, 2)+pow(pos.Z()-vtx_z, 2) );
+    vec_d.push_back(dist);
+  }
+  return vec_d;
+}
+
 RVec<int> isRecPrim(RVec<float> _dca)
 {
   vector<int> vec_prim;
@@ -256,4 +266,48 @@ RVec<float> getGoodTrackResolutionPid(RVec<float> _reco_tracks, RVec<float> _sim
       vec_delta.at(i) = delta; 
   }
   return vec_delta;
+}
+
+RVec<float> getGoodTrackRecoDca(RVec<float> _reco_tracks, RVec<float> _sim_tracks, RVec<int> _sim_ids, RVec<int> _isGoodTrack, RVec<int> _isPid)
+{
+  std::vector<float> vec_dca(_reco_tracks.size(), -999.);
+  for (int i = 0; i < _sim_ids.size(); ++i){
+    auto rec_track = _reco_tracks.at(i);
+    auto sim_id = _sim_ids.at(i);
+    if (sim_id >= _sim_tracks.size()){
+      continue;
+    }
+    if (sim_id < 0){
+      continue;
+    }
+    auto sim_track = _sim_tracks.at(sim_id);
+    auto dca = rec_track;
+    auto goodtrack = std::round(_isGoodTrack.at(i));
+    auto isPid = std::round(_isPid.at(i));
+    if (goodtrack && isPid)
+      vec_dca.at(i) = dca; 
+  }
+  return vec_dca;
+}
+
+RVec<float> getGoodTrackSimDca(RVec<float> _reco_tracks, RVec<float> _sim_tracks, RVec<int> _sim_ids, RVec<int> _isGoodTrack, RVec<int> _isPid)
+{
+  std::vector<float> vec_dca(_reco_tracks.size(), -999.);
+  for (int i = 0; i < _sim_ids.size(); ++i){
+    auto rec_track = _reco_tracks.at(i);
+    auto sim_id = _sim_ids.at(i);
+    if (sim_id >= _sim_tracks.size()){
+      continue;
+    }
+    if (sim_id < 0){
+      continue;
+    }
+    auto sim_track = _sim_tracks.at(sim_id);
+    auto dca = sim_track;
+    auto goodtrack = std::round(_isGoodTrack.at(i));
+    auto isPid = std::round(_isPid.at(i));
+    if (goodtrack && isPid)
+      vec_dca.at(i) = dca; 
+  }
+  return vec_dca;
 }
