@@ -8,7 +8,7 @@
 
 R__ADD_INCLUDE_PATH($VMCWORKDIR)
 
-void MpdDst2UniGen(std::string inFileName, std::string outFileName, bool isBoost=false, float snn=0.)
+void MpdDst2UniGen(std::string inFileName, std::string outFileName, bool doLab2CmsBoost=false, float snn=0.)
 {
   if (inFileName == "") {
     std::cerr << "Input file path is empty! Abort..." << std::endl;
@@ -21,6 +21,19 @@ void MpdDst2UniGen(std::string inFileName, std::string outFileName, bool isBoost
 
   TStopwatch timer;
   timer.Start();
+
+  float ekin, elab, plab, ybeam, betaCM, gammaCM;
+  float mp = 0.938272f;
+  if (doLab2CmsBoost){
+    ekin = (snn + 2.*mp)*(snn - 2.*mp)/(2.*mp);
+    elab = ekin + mp;
+    plab = sqrt(elab*elab - mp*mp);
+    ybeam = 0.25 * log( (elab+plab)/(elab-plab) );
+    betaCM = tanh(ybeam);
+    gammaCM = cosh(ybeam);
+    std::cout << "Lab -> CMS boost is ON. sqrt(sNN) = " << snn << " GeV, E_kin = " << ekin << "A GeV." << std::endl;
+    std::cout << "\tbeta_CM = " << betaCM << ", gamma_CM = " << gammaCM << "." << std::endl;
+  }
 
   TChain *dstTree = new TChain("mpdsim");
   dstTree->Add(inFileName.c_str());
@@ -60,13 +73,23 @@ void MpdDst2UniGen(std::string inFileName, std::string outFileName, bool isBoost
 
       int status = 0, parent = 0, parentDecay = 0, mate = 0, decay = 0, child[2] = {0, 0};
       double weight = 1.;
+      float px, py, pz, en;
       TLorentzVector position(mctrack->GetStartX(), mctrack->GetStartY(), mctrack->GetStartZ(), mctrack->GetStartT());
       TLorentzVector momentum;
-      if (!isBoost){
-        momentum.SetPxPyPzE(mctrack->GetPx(), mctrack->GetPy(), mctrack->GetPz(), mctrack->GetEnergy());
+      if (!doLab2CmsBoost){
+        px = mctrack->GetPx();
+        py = mctrack->GetPy();
+        pz = mctrack->GetPz();
+        en = mctrack->GetEnergy();
       } else {
-        momentum.SetPxPyPzE(mctrack->GetPx(), mctrack->GetPy(), mctrack->GetPz(), mctrack->GetEnergy()); 
+        px = mctrack->GetPx();
+        py = mctrack->GetPy();
+        pz = mctrack->GetPz();
+        en = mctrack->GetEnergy();
+        pz = gammaCM * (pz - betaCM * en);
+        en = sqrt(pow(mctrack->GetMass(),2) + px*px + py*py + pz*pz);
       }
+      momentum.SetPxPyPzE(px, py, pz, en); 
 
       UParticle uparticle(tr_counter, mctrack->GetPdgCode(), status, parent, parentDecay, mate, decay, child, momentum, position, weight);
       
