@@ -22,15 +22,14 @@ void MpdDst2UniGen(std::string inFileName, std::string outFileName, bool doLab2C
   TStopwatch timer;
   timer.Start();
 
-  float ekin, elab, plab, ybeam, betaCM, gammaCM;
+  float ekin, ec, pc, betaCM, gammaCM;
   float mp = 0.938272f;
   if (doLab2CmsBoost){
+    ec = 0.5 * snn;
+    pc = sqrt(ec*ec - mp*mp);
     ekin = (snn + 2.*mp)*(snn - 2.*mp)/(2.*mp);
-    elab = ekin + mp;
-    plab = sqrt(elab*elab - mp*mp);
-    ybeam = 0.25 * log( (elab+plab)/(elab-plab) );
-    betaCM = tanh(ybeam);
-    gammaCM = cosh(ybeam);
+    betaCM = pc/ec;
+    gammaCM = 1./sqrt(1-betaCM*betaCM);
     std::cout << "Lab -> CMS boost is ON. sqrt(sNN) = " << snn << " GeV, E_kin = " << ekin << "A GeV." << std::endl;
     std::cout << "\tbeta_CM = " << betaCM << ", gamma_CM = " << gammaCM << "." << std::endl;
   }
@@ -53,7 +52,7 @@ void MpdDst2UniGen(std::string inFileName, std::string outFileName, bool doLab2C
   tree->Branch("event", "UEvent", uevent);
   
   long events = dstTree->GetEntries();
-  std::cout << " Number of events in the DST file = " << events << std::endl;
+  std::cout << "Number of events in the DST file = " << events << std::endl;
 
   for (long i=0; i<events; i++){
     dstTree->GetEntry(i);
