@@ -29,7 +29,7 @@ void MpdDst2UniGen(std::string inFileName, std::string outFileName, bool doLab2C
     pc = sqrt(ec*ec - mp*mp);
     ekin = (snn + 2.*mp)*(snn - 2.*mp)/(2.*mp);
     betaCM = pc/ec;
-    gammaCM = 1./sqrt(1-betaCM*betaCM);
+    gammaCM = ec/mp;
     std::cout << "Lab -> CMS boost is ON. sqrt(sNN) = " << snn << " GeV, E_kin = " << ekin << "A GeV." << std::endl;
     std::cout << "\tbeta_CM = " << betaCM << ", gamma_CM = " << gammaCM << "." << std::endl;
   }
@@ -60,8 +60,8 @@ void MpdDst2UniGen(std::string inFileName, std::string outFileName, bool doLab2C
     if (i%100 == 0) std::cout << "\tevent [" << i << "/" << events << "]" << std::endl;
 
     uevent->Clear();
-    // fill event info:     evtID,                  impact par            psiRP        # of event steps  ev step number   ev step time
-    uevent->SetParameters(MCHeader->GetEventID(), MCHeader->GetB(), MCHeader->GetRotZ(), 0               ,    0          , 0 );
+    float nes = 0.f, nevstep = 0.f, ntstep = 0.f;
+    uevent->SetParameters(MCHeader->GetEventID(), MCHeader->GetB(), MCHeader->GetRotZ(), nes, nevstep, ntstep);
 
     int mctracks = fMCTracks->GetEntries();
     for (int itr=0; itr<mctracks; itr++){
