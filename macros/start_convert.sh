@@ -32,8 +32,8 @@ export prefix=req25
 #export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/urqmd_xew_${ecm}gev_${prefix}.list
 #export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/urqmd_bibi_${ecm}gev_${prefix}.list
 #export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/phsd_bibi_${ecm}gev.list
-export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/prod36_urqmd_xew_2.87gev_mpdfxt.list
-#export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/prod36_urqmd_xexe_2.87gev_mpdfxt.list
+#export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/prod36_urqmd_xew_2.87gev_mpdfxt.list
+export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/prod36_urqmd_xexe_2.87gev_mpdfxt.list
 
 export GEOFILE=${MPDROOT}/geometry/zdc_oldnames_7sect_v1_no_overlaps_w_pipe_magnet.root
 export SHORTNAME1=`basename $FILELIST`

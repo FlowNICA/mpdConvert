@@ -23,8 +23,10 @@ int getRefMultFxt(vector<fourVector> _p, RVec<int> _nhits)
     auto mom = _p.at(i);
     auto nhits = _nhits.at(i);
     if (nhits<=16) continue;
+    if (mom.Pt() < 0.2) continue;
+    if (mom.Pt() > 2.) continue;
     //if (abs(mom.Eta())<0.5) // Collider Mode
-    if (mom.Eta()>0. && mom.Eta()<2.) // FXT Mode
+    if (mom.Eta()>0.5 && mom.Eta()<2.) // FXT Mode
       Mult++;
   }
   return Mult;
@@ -110,6 +112,30 @@ RVec<float> getDcaMag(vector<XYZVector> _dca)
   vector <float> dca_;
   for (auto& dca:_dca)
     dca_.push_back(sqrt(dca.Mag2()));
+  return dca_;
+}
+
+RVec<float> getDcaX(vector<XYZVector> _dca)
+{
+  vector <float> dca_;
+  for (auto& dca:_dca)
+    dca_.push_back(dca.X());
+  return dca_;
+}
+
+RVec<float> getDcaY(vector<XYZVector> _dca)
+{
+  vector <float> dca_;
+  for (auto& dca:_dca)
+    dca_.push_back(dca.Y());
+  return dca_;
+}
+
+RVec<float> getDcaZ(vector<XYZVector> _dca)
+{
+  vector <float> dca_;
+  for (auto& dca:_dca)
+    dca_.push_back(dca.Z());
   return dca_;
 }
 

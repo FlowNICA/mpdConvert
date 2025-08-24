@@ -223,7 +223,7 @@ void getPID(std::string inFile_qa_step1, std::string outFile_pid)
     vsigm_m2_p_x.push_back(h2_m2pq->GetXaxis()->GetBinCenter(i));
     vsigm_m2_p_ex.push_back(h2_m2pq->GetXaxis()->GetBinWidth(i)*0.5);
   }
-  
+
   // Fitting m2 distributions
   std::cout << "Fitting m2 distributions" << std::endl;
   for (int i=0; i<vh1_m2.size(); ++i){

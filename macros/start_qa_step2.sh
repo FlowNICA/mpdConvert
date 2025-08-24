@@ -21,16 +21,18 @@ export JOB_ID=${SLURM_ARRAY_JOB_ID}
 export TASK_ID=${SLURM_ARRAY_TASK_ID}
 
 export ecm=2.87 #2.5, 3.0, 3.5 GeV
-export nucl1_mass=184 #209 for Bi, 184 for W, 154 for Xe
+export nucl1_mass=154 #209 for Bi, 184 for W, 154 for Xe
 export nucl2_mass=154 #209 for Bi, 184 for W, 154 for Xe
-export system=xew
+export system=xexe
 export programm=prod36
 
 export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/lists/mpdtree_urqmd_${system}_${ecm}gev_${programm}.list
 #export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/mpdtree_urqmd_${system}_${ecm}gev_${programm}.list
 
 #export PID_FILE=/lustre/stor2/mephi/parfenov/mpdtree/OUT/qa_step1_mpdtree_urqmd_xexe_2.87gev_prod36/8818308/pid.root
-export PID_FILE=/lustre/stor2/mephi/parfenov/mpdtree/OUT/qa_step1_mpdtree_urqmd_xew_2.87gev_prod36/8818608/pid.root
+export PID_FILE=/lustre/stor2/mephi/parfenov/mpdtree/OUT/qa_step1_mpdtree_urqmd_xexe_2.87gev_prod36/12263730/pid.root
+#export PID_FILE=/lustre/stor2/mephi/parfenov/mpdtree/OUT/qa_step1_mpdtree_urqmd_xew_2.87gev_prod36/8818608/pid.root
+#export PID_FILE=/lustre/stor2/mephi/parfenov/mpdtree/OUT/qa_step1_mpdtree_urqmd_xew_2.87gev_prod36/12135741/pid.root
 
 export SHORTNAME1=`basename $FILELIST`
 export SHORTNAME11=${SHORTNAME1%.list}

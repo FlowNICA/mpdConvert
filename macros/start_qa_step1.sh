@@ -13,7 +13,7 @@
 #
 
 source /cvmfs/nica.jinr.ru/sw/os/login.sh latest
-module add mpddev/v24.12.24-1
+module add mpddev/
 export MPDROOT=/lustre/home/user/p/parfenov/Soft/mpdroot/install
 source /lustre/home/user/p/parfenov/Soft/mpdroot/install/config/env.sh
 
@@ -21,9 +21,9 @@ export JOB_ID=${SLURM_ARRAY_JOB_ID}
 export TASK_ID=${SLURM_ARRAY_TASK_ID}
 
 export ecm=2.87 #2.5, 3.0, 3.5 GeV
-export nucl1_mass=184 #209 for Bi, 184 for W, 154 for Xe
-export nucl2_mass=154 #209 for Bi, 184 for W, 154 for Xe
-export system=xew
+export nucl1_mass=124 #209 for Bi, 184 for W, 124 for Xe
+export nucl2_mass=184 #209 for Bi, 184 for W, 124 for Xe
+export system=xew #xew
 export programm=prod36
 
 export FILELIST=/lustre/home/user/p/parfenov/Soft/mpdConvert/macros/lists/mpdtree_urqmd_${system}_${ecm}gev_${programm}.list
