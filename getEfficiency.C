@@ -139,7 +139,8 @@ void getEfficiency(string fileInName="", string fileOutName="")
   std::vector<double> vsigm_err_dcax_kaonP, vsigm_err_dcay_kaonP, vsigm_err_dcaz_kaonP;
   std::vector<double> vsigm_err_dcax_kaonM, vsigm_err_dcay_kaonM, vsigm_err_dcaz_kaonM;
   std::vector<double> vsigm_err_dcax_kaons, vsigm_err_dcay_kaons, vsigm_err_dcaz_kaons;
-  std::vector<double> vpt_x, vpt_err_x;
+  std::vector<double> vpt_x_proton, vpt_err_x_proton;
+  std::vector<double> vpt_x_pion, vpt_err_x_pion;
 
   auto h2_dcax_proton = (TH2D*)h2_recDcaXPt_proton->Clone();
   h2_dcax_proton->RebinY(10);
@@ -151,12 +152,11 @@ void getEfficiency(string fileInName="", string fileOutName="")
                                           h2_dcax_proton->GetXaxis()->GetBinLowEdge(i),
                                           h2_dcax_proton->GetXaxis()->GetBinUpEdge(i)) );
 
-    vpt_x.push_back(h2_dcax_proton->GetYaxis()->GetBinCenter(i));
-    vpt_err_x.push_back(0.);
+    vpt_x_proton.push_back(h2_dcax_proton->GetYaxis()->GetBinCenter(i));
+    vpt_err_x_proton.push_back(0.);
     vf1_dcax_proton.push_back( new TF1(Form("f1_dcax_proton_ptbin%i", i-firstbin), "gaus", -0.1, 0.1) );
     vf1_dcax_proton.at(i-firstbin)->FixParameter(1, 0.);
   }
-
   auto h2_dcay_proton = (TH2D*)h2_recDcaYPt_proton->Clone();
   h2_dcay_proton->RebinY(10);
   firstbin = h2_dcay_proton->GetYaxis()->FindBin(0.4);
@@ -167,12 +167,9 @@ void getEfficiency(string fileInName="", string fileOutName="")
                                           h2_dcay_proton->GetXaxis()->GetBinLowEdge(i),
                                           h2_dcay_proton->GetXaxis()->GetBinUpEdge(i)) );
 
-    vpt_x.push_back(h2_dcay_proton->GetYaxis()->GetBinCenter(i));
-    vpt_err_x.push_back(0.);
     vf1_dcay_proton.push_back( new TF1(Form("f1_dcay_proton_ptbin%i", i-firstbin), "gaus", -0.1, 0.1) );
     vf1_dcay_proton.at(i-firstbin)->FixParameter(1, 0.);
   }
-
   auto h2_dcaz_proton = (TH2D*)h2_recDcaZPt_proton->Clone();
   h2_dcaz_proton->RebinY(10);
   firstbin = h2_dcaz_proton->GetYaxis()->FindBin(0.4);
@@ -183,15 +180,12 @@ void getEfficiency(string fileInName="", string fileOutName="")
                                           h2_dcaz_proton->GetXaxis()->GetBinLowEdge(i),
                                           h2_dcaz_proton->GetXaxis()->GetBinUpEdge(i)) );
 
-    vpt_x.push_back(h2_dcaz_proton->GetYaxis()->GetBinCenter(i));
-    vpt_err_x.push_back(0.);
     vf1_dcaz_proton.push_back( new TF1(Form("f1_dcaz_proton_ptbin%i", i-firstbin), "gaus", -0.1, 0.1) );
     vf1_dcaz_proton.at(i-firstbin)->FixParameter(1, 0.);
   }
-
   auto h2_dcax_pionP = (TH2D*)h2_recDcaXPt_pionP->Clone();
   h2_dcax_pionP->RebinY(10);
-  firstbin = h2_dcax_pionP->GetYaxis()->FindBin(0.4);
+  firstbin = h2_dcax_pionP->GetYaxis()->FindBin(0.1);
   for (int i=firstbin; i<h2_dcax_pionP->GetNbinsY(); ++i) {
     vh1_dcax_pionP.push_back( (TH1D*)h2_dcax_pionP->ProjectionX(Form("h1_%s_dcax_pionP_bin%i", h2_dcax_pionP->GetName(), i-firstbin), i, i) );
     vh1_dcax_pionP.at(i-firstbin)->SetTitle( Form("%s for %2.2f < p_{T} < %2.2f GeV/c",
@@ -199,15 +193,14 @@ void getEfficiency(string fileInName="", string fileOutName="")
                                           h2_dcax_pionP->GetXaxis()->GetBinLowEdge(i),
                                           h2_dcax_pionP->GetXaxis()->GetBinUpEdge(i)) );
 
-    vpt_x.push_back(h2_dcax_pionP->GetYaxis()->GetBinCenter(i));
-    vpt_err_x.push_back(0.);
+    vpt_x_pion.push_back(h2_dcax_pionP->GetYaxis()->GetBinCenter(i));
+    vpt_err_x_pion.push_back(0.);
     vf1_dcax_pionP.push_back( new TF1(Form("f1_dcax_pionP_ptbin%i", i-firstbin), "gaus", -0.1, 0.1) );
     vf1_dcax_pionP.at(i-firstbin)->FixParameter(1, 0.);
   }
-
   auto h2_dcay_pionP = (TH2D*)h2_recDcaYPt_pionP->Clone();
   h2_dcay_pionP->RebinY(10);
-  firstbin = h2_dcay_pionP->GetYaxis()->FindBin(0.4);
+  firstbin = h2_dcay_pionP->GetYaxis()->FindBin(0.1);
   for (int i=firstbin; i<h2_dcay_pionP->GetNbinsY(); ++i) {
     vh1_dcay_pionP.push_back( (TH1D*)h2_dcay_pionP->ProjectionX(Form("h1_%s_dcay_pionP_bin%i", h2_dcay_pionP->GetName(), i-firstbin), i, i) );
     vh1_dcay_pionP.at(i-firstbin)->SetTitle( Form("%s for %2.2f < p_{T} < %2.2f GeV/c",
@@ -215,15 +208,12 @@ void getEfficiency(string fileInName="", string fileOutName="")
                                           h2_dcay_pionP->GetXaxis()->GetBinLowEdge(i),
                                           h2_dcay_pionP->GetXaxis()->GetBinUpEdge(i)) );
 
-    vpt_x.push_back(h2_dcay_pionP->GetYaxis()->GetBinCenter(i));
-    vpt_err_x.push_back(0.);
     vf1_dcay_pionP.push_back( new TF1(Form("f1_dcay_pionP_ptbin%i", i-firstbin), "gaus", -0.1, 0.1) );
     vf1_dcay_pionP.at(i-firstbin)->FixParameter(1, 0.);
   }
-
   auto h2_dcaz_pionP = (TH2D*)h2_recDcaZPt_pionP->Clone();
   h2_dcaz_pionP->RebinY(10);
-  firstbin = h2_dcaz_pionP->GetYaxis()->FindBin(0.4);
+  firstbin = h2_dcaz_pionP->GetYaxis()->FindBin(0.1);
   for (int i=firstbin; i<h2_dcaz_pionP->GetNbinsY(); ++i) {
     vh1_dcaz_pionP.push_back( (TH1D*)h2_dcaz_pionP->ProjectionX(Form("h1_%s_dcaz_pionP_bin%i", h2_dcaz_pionP->GetName(), i-firstbin), i, i) );
     vh1_dcaz_pionP.at(i-firstbin)->SetTitle( Form("%s for %2.2f < p_{T} < %2.2f GeV/c",
@@ -231,15 +221,12 @@ void getEfficiency(string fileInName="", string fileOutName="")
                                           h2_dcaz_pionP->GetXaxis()->GetBinLowEdge(i),
                                           h2_dcaz_pionP->GetXaxis()->GetBinUpEdge(i)) );
 
-    vpt_x.push_back(h2_dcaz_pionP->GetYaxis()->GetBinCenter(i));
-    vpt_err_x.push_back(0.);
     vf1_dcaz_pionP.push_back( new TF1(Form("f1_dcaz_pionP_ptbin%i", i-firstbin), "gaus", -0.1, 0.1) );
     vf1_dcaz_pionP.at(i-firstbin)->FixParameter(1, 0.);
   }
-
   auto h2_dcax_pionM = (TH2D*)h2_recDcaXPt_pionM->Clone();
   h2_dcax_pionM->RebinY(10);
-  firstbin = h2_dcax_pionM->GetYaxis()->FindBin(0.4);
+  firstbin = h2_dcax_pionM->GetYaxis()->FindBin(0.1);
   for (int i=firstbin; i<h2_dcax_pionM->GetNbinsY(); ++i) {
     vh1_dcax_pionM.push_back( (TH1D*)h2_dcax_pionM->ProjectionX(Form("h1_%s_dcax_pionM_bin%i", h2_dcax_pionM->GetName(), i-firstbin), i, i) );
     vh1_dcax_pionM.at(i-firstbin)->SetTitle( Form("%s for %2.2f < p_{T} < %2.2f GeV/c",
@@ -247,15 +234,12 @@ void getEfficiency(string fileInName="", string fileOutName="")
                                           h2_dcax_pionM->GetXaxis()->GetBinLowEdge(i),
                                           h2_dcax_pionM->GetXaxis()->GetBinUpEdge(i)) );
 
-    vpt_x.push_back(h2_dcax_pionM->GetYaxis()->GetBinCenter(i));
-    vpt_err_x.push_back(0.);
     vf1_dcax_pionM.push_back( new TF1(Form("f1_dcax_pionM_ptbin%i", i-firstbin), "gaus", -0.1, 0.1) );
     vf1_dcax_pionM.at(i-firstbin)->FixParameter(1, 0.);
   }
-
   auto h2_dcay_pionM = (TH2D*)h2_recDcaYPt_pionM->Clone();
   h2_dcay_pionM->RebinY(10);
-  firstbin = h2_dcay_pionM->GetYaxis()->FindBin(0.4);
+  firstbin = h2_dcay_pionM->GetYaxis()->FindBin(0.1);
   for (int i=firstbin; i<h2_dcay_pionM->GetNbinsY(); ++i) {
     vh1_dcay_pionM.push_back( (TH1D*)h2_dcay_pionM->ProjectionX(Form("h1_%s_dcay_pionM_bin%i", h2_dcay_pionM->GetName(), i-firstbin), i, i) );
     vh1_dcay_pionM.at(i-firstbin)->SetTitle( Form("%s for %2.2f < p_{T} < %2.2f GeV/c",
@@ -263,15 +247,12 @@ void getEfficiency(string fileInName="", string fileOutName="")
                                           h2_dcay_pionM->GetXaxis()->GetBinLowEdge(i),
                                           h2_dcay_pionM->GetXaxis()->GetBinUpEdge(i)) );
 
-    vpt_x.push_back(h2_dcay_pionM->GetYaxis()->GetBinCenter(i));
-    vpt_err_x.push_back(0.);
     vf1_dcay_pionM.push_back( new TF1(Form("f1_dcay_pionM_ptbin%i", i-firstbin), "gaus", -0.1, 0.1) );
     vf1_dcay_pionM.at(i-firstbin)->FixParameter(1, 0.);
   }
-
   auto h2_dcaz_pionM = (TH2D*)h2_recDcaZPt_pionM->Clone();
   h2_dcaz_pionM->RebinY(10);
-  firstbin = h2_dcaz_pionM->GetYaxis()->FindBin(0.4);
+  firstbin = h2_dcaz_pionM->GetYaxis()->FindBin(0.1);
   for (int i=firstbin; i<h2_dcaz_pionM->GetNbinsY(); ++i) {
     vh1_dcaz_pionM.push_back( (TH1D*)h2_dcaz_pionM->ProjectionX(Form("h1_%s_dcaz_pionM_bin%i", h2_dcaz_pionM->GetName(), i-firstbin), i, i) );
     vh1_dcaz_pionM.at(i-firstbin)->SetTitle( Form("%s for %2.2f < p_{T} < %2.2f GeV/c",
@@ -279,15 +260,12 @@ void getEfficiency(string fileInName="", string fileOutName="")
                                           h2_dcaz_pionM->GetXaxis()->GetBinLowEdge(i),
                                           h2_dcaz_pionM->GetXaxis()->GetBinUpEdge(i)) );
 
-    vpt_x.push_back(h2_dcaz_pionM->GetYaxis()->GetBinCenter(i));
-    vpt_err_x.push_back(0.);
     vf1_dcaz_pionM.push_back( new TF1(Form("f1_dcaz_pionM_ptbin%i", i-firstbin), "gaus", -0.1, 0.1) );
     vf1_dcaz_pionM.at(i-firstbin)->FixParameter(1, 0.);
   }
-
   auto h2_dcax_pions = (TH2D*)h2_recDcaXPt_pions->Clone();
   h2_dcax_pions->RebinY(10);
-  firstbin = h2_dcax_pions->GetYaxis()->FindBin(0.4);
+  firstbin = h2_dcax_pions->GetYaxis()->FindBin(0.1);
   for (int i=firstbin; i<h2_dcax_pions->GetNbinsY(); ++i) {
     vh1_dcax_pions.push_back( (TH1D*)h2_dcax_pions->ProjectionX(Form("h1_%s_dcax_pions_bin%i", h2_dcax_pions->GetName(), i-firstbin), i, i) );
     vh1_dcax_pions.at(i-firstbin)->SetTitle( Form("%s for %2.2f < p_{T} < %2.2f GeV/c",
@@ -295,15 +273,12 @@ void getEfficiency(string fileInName="", string fileOutName="")
                                           h2_dcax_pions->GetXaxis()->GetBinLowEdge(i),
                                           h2_dcax_pions->GetXaxis()->GetBinUpEdge(i)) );
 
-    vpt_x.push_back(h2_dcax_pions->GetYaxis()->GetBinCenter(i));
-    vpt_err_x.push_back(0.);
     vf1_dcax_pions.push_back( new TF1(Form("f1_dcax_pions_ptbin%i", i-firstbin), "gaus", -0.1, 0.1) );
     vf1_dcax_pions.at(i-firstbin)->FixParameter(1, 0.);
   }
-
   auto h2_dcay_pions = (TH2D*)h2_recDcaYPt_pions->Clone();
   h2_dcay_pions->RebinY(10);
-  firstbin = h2_dcay_pions->GetYaxis()->FindBin(0.4);
+  firstbin = h2_dcay_pions->GetYaxis()->FindBin(0.1);
   for (int i=firstbin; i<h2_dcay_pions->GetNbinsY(); ++i) {
     vh1_dcay_pions.push_back( (TH1D*)h2_dcay_pions->ProjectionX(Form("h1_%s_dcay_pions_bin%i", h2_dcay_pions->GetName(), i-firstbin), i, i) );
     vh1_dcay_pions.at(i-firstbin)->SetTitle( Form("%s for %2.2f < p_{T} < %2.2f GeV/c",
@@ -311,15 +286,12 @@ void getEfficiency(string fileInName="", string fileOutName="")
                                           h2_dcay_pions->GetXaxis()->GetBinLowEdge(i),
                                           h2_dcay_pions->GetXaxis()->GetBinUpEdge(i)) );
 
-    vpt_x.push_back(h2_dcay_pions->GetYaxis()->GetBinCenter(i));
-    vpt_err_x.push_back(0.);
     vf1_dcay_pions.push_back( new TF1(Form("f1_dcay_pions_ptbin%i", i-firstbin), "gaus", -0.1, 0.1) );
     vf1_dcay_pions.at(i-firstbin)->FixParameter(1, 0.);
   }
-
   auto h2_dcaz_pions = (TH2D*)h2_recDcaZPt_pions->Clone();
   h2_dcaz_pions->RebinY(10);
-  firstbin = h2_dcaz_pions->GetYaxis()->FindBin(0.4);
+  firstbin = h2_dcaz_pions->GetYaxis()->FindBin(0.1);
   for (int i=firstbin; i<h2_dcaz_pions->GetNbinsY(); ++i) {
     vh1_dcaz_pions.push_back( (TH1D*)h2_dcaz_pions->ProjectionX(Form("h1_%s_dcaz_pions_bin%i", h2_dcaz_pions->GetName(), i-firstbin), i, i) );
     vh1_dcaz_pions.at(i-firstbin)->SetTitle( Form("%s for %2.2f < p_{T} < %2.2f GeV/c",
@@ -327,8 +299,6 @@ void getEfficiency(string fileInName="", string fileOutName="")
                                           h2_dcaz_pions->GetXaxis()->GetBinLowEdge(i),
                                           h2_dcaz_pions->GetXaxis()->GetBinUpEdge(i)) );
 
-    vpt_x.push_back(h2_dcaz_pions->GetYaxis()->GetBinCenter(i));
-    vpt_err_x.push_back(0.);
     vf1_dcaz_pions.push_back( new TF1(Form("f1_dcaz_pions_ptbin%i", i-firstbin), "gaus", -0.1, 0.1) );
     vf1_dcaz_pions.at(i-firstbin)->FixParameter(1, 0.);
   }
@@ -342,7 +312,7 @@ void getEfficiency(string fileInName="", string fileOutName="")
     }
     vsigm_dcax_proton.push_back(vf1_dcax_proton.at(i)->GetParameter(2));
     vsigm_err_dcax_proton.push_back(vf1_dcax_proton.at(i)->GetParError(2));
-  }/*
+  }
   for (int i=0; i<vh1_dcay_proton.size(); ++i){
     if (!vh1_dcay_proton.at(i)) continue;
     for (int k=0; k<niter; ++k){
@@ -430,31 +400,94 @@ void getEfficiency(string fileInName="", string fileOutName="")
     }
     vsigm_dcaz_pions.push_back(vf1_dcaz_pions.at(i)->GetParameter(2));
     vsigm_err_dcaz_pions.push_back(vf1_dcaz_pions.at(i)->GetParError(2));
-  }*/
+  }
 
   // Make graphs and functions with DCA n-sigma
-  auto gr_dcax_sigm_proton = new TGraphErrors(vpt_x.size()-1,
-                                              vpt_x.data(), vsigm_dcax_proton.data(),
-                                              vpt_err_x.data(), vsigm_err_dcax_proton.data());
+  auto gr_dcax_sigm_proton = new TGraphErrors(vpt_x_proton.size()-1,
+                                              vpt_x_proton.data(), vsigm_dcax_proton.data(),
+                                              vpt_err_x_proton.data(), vsigm_err_dcax_proton.data());
   gr_dcax_sigm_proton->SetName("gr_dcax_sigm_proton");
   gr_dcax_sigm_proton->SetTitle("#sigma_{DCA_{x}} of protons vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{x}}, cm");
   auto f1_dcax_sigm_proton = new TF1("f1_dcax_sigm_proton", "pol6", 0.4, 3.);
   gr_dcax_sigm_proton->Fit(f1_dcax_sigm_proton, "RNQ");
-/*  auto gr_dcay_sigm_proton = new TGraphErrors(vpt_x.size()-1,
-                                              vpt_x.data(), vsigm_dcay_proton.data(),
-                                              vpt_err_x.data(), vsigm_err_dcay_proton.data());
+  auto gr_dcay_sigm_proton = new TGraphErrors(vpt_x_proton.size()-1,
+                                              vpt_x_proton.data(), vsigm_dcay_proton.data(),
+                                              vpt_err_x_proton.data(), vsigm_err_dcay_proton.data());
   gr_dcay_sigm_proton->SetName("gr_dcay_sigm_proton");
-  gr_dcay_sigm_proton->SetTitle("#sigma_{DCA_{x}} of protons vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{x}}, cm");
+  gr_dcay_sigm_proton->SetTitle("#sigma_{DCA_{y}} of protons vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{y}}, cm");
   auto f1_dcay_sigm_proton = new TF1("f1_dcay_sigm_proton", "pol6", 0.4, 3.);
   gr_dcay_sigm_proton->Fit(f1_dcay_sigm_proton, "RNQ");
-  auto gr_dcaz_sigm_proton = new TGraphErrors(vpt_x.size()-1,
-                                              vpt_x.data(), vsigm_dcaz_proton.data(),
-                                              vpt_err_x.data(), vsigm_err_dcaz_proton.data());
+  auto gr_dcaz_sigm_proton = new TGraphErrors(vpt_x_proton.size()-1,
+                                              vpt_x_proton.data(), vsigm_dcaz_proton.data(),
+                                              vpt_err_x_proton.data(), vsigm_err_dcaz_proton.data());
   gr_dcaz_sigm_proton->SetName("gr_dcaz_sigm_proton");
-  gr_dcaz_sigm_proton->SetTitle("#sigma_{DCA_{x}} of protons vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{x}}, cm");
+  gr_dcaz_sigm_proton->SetTitle("#sigma_{DCA_{z}} of protons vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{z}}, cm");
   auto f1_dcaz_sigm_proton = new TF1("f1_dcaz_sigm_proton", "pol6", 0.4, 3.);
   gr_dcaz_sigm_proton->Fit(f1_dcaz_sigm_proton, "RNQ");
-*/
+  auto gr_dcax_sigm_pionP = new TGraphErrors(vpt_x_pion.size()-1,
+                                              vpt_x_pion.data(), vsigm_dcax_pionP.data(),
+                                              vpt_err_x_pion.data(), vsigm_err_dcax_pionP.data());
+  gr_dcax_sigm_pionP->SetName("gr_dcax_sigm_pionP");
+  gr_dcax_sigm_pionP->SetTitle("#sigma_{DCA_{x}} of pionPs vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{x}}, cm");
+  auto f1_dcax_sigm_pionP = new TF1("f1_dcax_sigm_pionP", "pol6", 0.1, 1.5);
+  gr_dcax_sigm_pionP->Fit(f1_dcax_sigm_pionP, "RNQ");
+  auto gr_dcay_sigm_pionP = new TGraphErrors(vpt_x_pion.size()-1,
+                                              vpt_x_pion.data(), vsigm_dcay_pionP.data(),
+                                              vpt_err_x_pion.data(), vsigm_err_dcay_pionP.data());
+  gr_dcay_sigm_pionP->SetName("gr_dcay_sigm_pionP");
+  gr_dcay_sigm_pionP->SetTitle("#sigma_{DCA_{y}} of pionPs vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{y}}, cm");
+  auto f1_dcay_sigm_pionP = new TF1("f1_dcay_sigm_pionP", "pol6", 0.1, 1.5);
+  gr_dcay_sigm_pionP->Fit(f1_dcay_sigm_pionP, "RNQ");
+  auto gr_dcaz_sigm_pionP = new TGraphErrors(vpt_x_pion.size()-1,
+                                              vpt_x_pion.data(), vsigm_dcaz_pionP.data(),
+                                              vpt_err_x_pion.data(), vsigm_err_dcaz_pionP.data());
+  gr_dcaz_sigm_pionP->SetName("gr_dcaz_sigm_pionP");
+  gr_dcaz_sigm_pionP->SetTitle("#sigma_{DCA_{z}} of pionPs vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{z}}, cm");
+  auto f1_dcaz_sigm_pionP = new TF1("f1_dcaz_sigm_pionP", "pol6", 0.1, 1.5);
+  gr_dcaz_sigm_pionP->Fit(f1_dcaz_sigm_pionP, "RNQ");
+  auto gr_dcax_sigm_pionM = new TGraphErrors(vpt_x_pion.size()-1,
+                                              vpt_x_pion.data(), vsigm_dcax_pionM.data(),
+                                              vpt_err_x_pion.data(), vsigm_err_dcax_pionM.data());
+  gr_dcax_sigm_pionM->SetName("gr_dcax_sigm_pionM");
+  gr_dcax_sigm_pionM->SetTitle("#sigma_{DCA_{x}} of pionMs vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{x}}, cm");
+  auto f1_dcax_sigm_pionM = new TF1("f1_dcax_sigm_pionM", "pol6", 0.1, 1.5);
+  gr_dcax_sigm_pionM->Fit(f1_dcax_sigm_pionM, "RNQ");
+  auto gr_dcay_sigm_pionM = new TGraphErrors(vpt_x_pion.size()-1,
+                                              vpt_x_pion.data(), vsigm_dcay_pionM.data(),
+                                              vpt_err_x_pion.data(), vsigm_err_dcay_pionM.data());
+  gr_dcay_sigm_pionM->SetName("gr_dcay_sigm_pionM");
+  gr_dcay_sigm_pionM->SetTitle("#sigma_{DCA_{y}} of pionMs vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{y}}, cm");
+  auto f1_dcay_sigm_pionM = new TF1("f1_dcay_sigm_pionM", "pol6", 0.1, 1.5);
+  gr_dcay_sigm_pionM->Fit(f1_dcay_sigm_pionM, "RNQ");
+  auto gr_dcaz_sigm_pionM = new TGraphErrors(vpt_x_pion.size()-1,
+                                              vpt_x_pion.data(), vsigm_dcaz_pionM.data(),
+                                              vpt_err_x_pion.data(), vsigm_err_dcaz_pionM.data());
+  gr_dcaz_sigm_pionM->SetName("gr_dcaz_sigm_pionM");
+  gr_dcaz_sigm_pionM->SetTitle("#sigma_{DCA_{z}} of pionMs vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{z}}, cm");
+  auto f1_dcaz_sigm_pionM = new TF1("f1_dcaz_sigm_pionM", "pol6", 0.1, 1.5);
+  gr_dcaz_sigm_pionM->Fit(f1_dcaz_sigm_pionM, "RNQ");
+  auto gr_dcax_sigm_pions = new TGraphErrors(vpt_x_pion.size()-1,
+                                              vpt_x_pion.data(), vsigm_dcax_pions.data(),
+                                              vpt_err_x_pion.data(), vsigm_err_dcax_pions.data());
+  gr_dcax_sigm_pions->SetName("gr_dcax_sigm_pions");
+  gr_dcax_sigm_pions->SetTitle("#sigma_{DCA_{x}} of pionss vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{x}}, cm");
+  auto f1_dcax_sigm_pions = new TF1("f1_dcax_sigm_pions", "pol6", 0.1, 1.5);
+  gr_dcax_sigm_pions->Fit(f1_dcax_sigm_pions, "RNQ");
+  auto gr_dcay_sigm_pions = new TGraphErrors(vpt_x_pion.size()-1,
+                                              vpt_x_pion.data(), vsigm_dcay_pions.data(),
+                                              vpt_err_x_pion.data(), vsigm_err_dcay_pions.data());
+  gr_dcay_sigm_pions->SetName("gr_dcay_sigm_pions");
+  gr_dcay_sigm_pions->SetTitle("#sigma_{DCA_{y}} of pionss vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{y}}, cm");
+  auto f1_dcay_sigm_pions = new TF1("f1_dcay_sigm_pions", "pol6", 0.1, 1.5);
+  gr_dcay_sigm_pions->Fit(f1_dcay_sigm_pions, "RNQ");
+  auto gr_dcaz_sigm_pions = new TGraphErrors(vpt_x_pion.size()-1,
+                                              vpt_x_pion.data(), vsigm_dcaz_pions.data(),
+                                              vpt_err_x_pion.data(), vsigm_err_dcaz_pions.data());
+  gr_dcaz_sigm_pions->SetName("gr_dcaz_sigm_pions");
+  gr_dcaz_sigm_pions->SetTitle("#sigma_{DCA_{z}} of pionss vs p_{T};p_{T}, GeV/c;#sigma_{DCA_{z}}, cm");
+  auto f1_dcaz_sigm_pions = new TF1("f1_dcaz_sigm_pions", "pol6", 0.1, 1.5);
+  gr_dcaz_sigm_pions->Fit(f1_dcaz_sigm_pions, "RNQ");
+
   fOut->cd();
 
   h2_effYPt_proton->Write();
@@ -468,19 +501,111 @@ void getEfficiency(string fileInName="", string fileOutName="")
   h2_dcax_proton->Write();
   gr_dcax_sigm_proton->Write();
   f1_dcax_sigm_proton->Write();
-/*  h2_dcay_proton->Write();
+  h2_dcay_proton->Write();
   gr_dcay_sigm_proton->Write();
   f1_dcay_sigm_proton->Write();
   h2_dcaz_proton->Write();
   gr_dcaz_sigm_proton->Write();
   f1_dcaz_sigm_proton->Write();
-*/
+  h2_dcax_pionP->Write();
+  gr_dcax_sigm_pionP->Write();
+  f1_dcax_sigm_pionP->Write();
+  h2_dcay_pionP->Write();
+  gr_dcay_sigm_pionP->Write();
+  f1_dcay_sigm_pionP->Write();
+  h2_dcaz_pionP->Write();
+  gr_dcaz_sigm_pionP->Write();
+  f1_dcaz_sigm_pionP->Write();
+  h2_dcax_pionM->Write();
+  gr_dcax_sigm_pionM->Write();
+  f1_dcax_sigm_pionM->Write();
+  h2_dcay_pionM->Write();
+  gr_dcay_sigm_pionM->Write();
+  f1_dcay_sigm_pionM->Write();
+  h2_dcaz_pionM->Write();
+  gr_dcaz_sigm_pionM->Write();
+  f1_dcaz_sigm_pionM->Write();
+  h2_dcax_pions->Write();
+  gr_dcax_sigm_pions->Write();
+  f1_dcax_sigm_pions->Write();
+  h2_dcay_pions->Write();
+  gr_dcay_sigm_pions->Write();
+  f1_dcay_sigm_pions->Write();
+  h2_dcaz_pions->Write();
+  gr_dcaz_sigm_pions->Write();
+  f1_dcaz_sigm_pions->Write();
+
   fOut->mkdir("dcax_proton_slices");
   fOut->cd("dcax_proton_slices");
-
   for (int i=0; i<vh1_dcax_proton.size(); i++) {
     vh1_dcax_proton.at(i)->Write();
     vf1_dcax_proton.at(i)->Write();
+  }
+  fOut->mkdir("dcay_proton_slices");
+  fOut->cd("dcay_proton_slices");
+  for (int i=0; i<vh1_dcay_proton.size(); i++) {
+    vh1_dcay_proton.at(i)->Write();
+    vf1_dcay_proton.at(i)->Write();
+  }
+  fOut->mkdir("dcaz_proton_slices");
+  fOut->cd("dcaz_proton_slices");
+  for (int i=0; i<vh1_dcaz_proton.size(); i++) {
+    vh1_dcaz_proton.at(i)->Write();
+    vf1_dcaz_proton.at(i)->Write();
+  }
+  fOut->mkdir("dcax_pionP_slices");
+  fOut->cd("dcax_pionP_slices");
+  for (int i=0; i<vh1_dcax_pionP.size(); i++) {
+    vh1_dcax_pionP.at(i)->Write();
+    vf1_dcax_pionP.at(i)->Write();
+  }
+  fOut->mkdir("dcay_pionP_slices");
+  fOut->cd("dcay_pionP_slices");
+  for (int i=0; i<vh1_dcay_pionP.size(); i++) {
+    vh1_dcay_pionP.at(i)->Write();
+    vf1_dcay_pionP.at(i)->Write();
+  }
+  fOut->mkdir("dcaz_pionP_slices");
+  fOut->cd("dcaz_pionP_slices");
+  for (int i=0; i<vh1_dcaz_pionP.size(); i++) {
+    vh1_dcaz_pionP.at(i)->Write();
+    vf1_dcaz_pionP.at(i)->Write();
+  }
+  fOut->mkdir("dcax_pionM_slices");
+  fOut->cd("dcax_pionM_slices");
+  for (int i=0; i<vh1_dcax_pionM.size(); i++) {
+    vh1_dcax_pionM.at(i)->Write();
+    vf1_dcax_pionM.at(i)->Write();
+  }
+  fOut->mkdir("dcay_pionM_slices");
+  fOut->cd("dcay_pionM_slices");
+  for (int i=0; i<vh1_dcay_pionM.size(); i++) {
+    vh1_dcay_pionM.at(i)->Write();
+    vf1_dcay_pionM.at(i)->Write();
+  }
+  fOut->mkdir("dcaz_pionM_slices");
+  fOut->cd("dcaz_pionM_slices");
+  for (int i=0; i<vh1_dcaz_pionM.size(); i++) {
+    vh1_dcaz_pionM.at(i)->Write();
+    vf1_dcaz_pionM.at(i)->Write();
+  }
+  fOut->mkdir("dcax_pions_slices");
+  fOut->cd("dcax_pions_slices");
+  for (int i=0; i<vh1_dcax_pions.size(); i++) {
+    vh1_dcax_pions.at(i)->Write();
+    vf1_dcax_pions.at(i)->Write();
+  }
+  fOut->mkdir("dcay_pions_slices");
+  fOut->cd("dcay_pions_slices");
+  for (int i=0; i<vh1_dcay_pions.size(); i++) {
+    vh1_dcay_pions.at(i)->Write();
+    vf1_dcay_pions.at(i)->Write();
+  }
+  fOut->mkdir("dcaz_pions_slices");
+  fOut->cd("dcaz_pions_slices");
+  for (int i=0; i<vh1_dcaz_pions.size(); i++) {
+    vh1_dcaz_pions.at(i)->Write();
+    vf1_dcaz_pions.at(i)->Write();
   }
 
   fOut->Close();
