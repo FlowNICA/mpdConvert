@@ -1176,7 +1176,7 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     .Define("fhcalModId", moduleId, {"fhcalModPos"})
     .Define("fhcalModE",fhcalModE,{"ZdcDigi", "fhcalModId"})
     .Define("PolarVec", PolarVec,{"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
-    .Define("fMCPolVecMap",MCPolVecMap,{"MCPolVecMap","MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ","mcRP"})
+    .Define("fMCPolVecMap",MCPolVecMap,{"MCPolVecMap","MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ","mcRP"}) // <-- might cause a nasty seg fault. No idea why...
     .Define("fMCGenIDMap",MCGenIDMap,{"MCGenIDMap"})
     .Define("AssocMcMap",assocMcMap,{"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ","MCGenIDMap"})
     .Define("emcMult", emcClusterMult,    {"EmcCluster"})
