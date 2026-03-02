@@ -1110,7 +1110,7 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
   timer.Start();
 
   cout << "Creating additional dictionary for IO..." << endl;
- gSystem->Load("/scratch2/troshin/mpd_hyperons/mpdConvert/AutoDict_vector_vector_float___cxx.so");
+ gInterpreter->GenerateDictionary("vector<vector<float>>");
   TChain *chainRec=makeChain(inDst, "mpdsim");
   ROOT::RDataFrame d(*chainRec);
 
@@ -1179,13 +1179,13 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     .Define("fMCPolVecMap",MCPolVecMap,{"MCPolVecMap","MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ","mcRP"})
     .Define("fMCGenIDMap",MCGenIDMap,{"MCGenIDMap"})
     .Define("AssocMcMap",assocMcMap,{"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ","MCGenIDMap"})
-  //  .Define("emcMult", emcClusterMult,    {"EmcCluster"})
-  //  .Define("emcEnergy", emcClusterEnergy,{"EmcCluster"})
-  //  .Define("emcPos", emcClusterPos,      {"EmcCluster"})
-  //  .Define("emcChi2", emcClusterChi2,    {"EmcCluster"})
-  //  .Define("emcTime", emcClusterTime,    {"EmcCluster"})
-  //  .Define("emcDPhi", emcClusterDPhi,    {"EmcCluster"})
-  //  .Define("emcDZ", emcClusterDZ,        {"EmcCluster"})
+    .Define("emcMult", emcClusterMult,    {"EmcCluster"})
+    .Define("emcEnergy", emcClusterEnergy,{"EmcCluster"})
+    .Define("emcPos", emcClusterPos,      {"EmcCluster"})
+    .Define("emcChi2", emcClusterChi2,    {"EmcCluster"})
+    .Define("emcTime", emcClusterTime,    {"EmcCluster"})
+    .Define("emcDPhi", emcClusterDPhi,    {"EmcCluster"})
+    .Define("emcDZ", emcClusterDZ,        {"EmcCluster"})
   ;
   dd.Foreach([](ULong64_t evtId){if (evtId % 100 == 0) cout << "\r" << evtId;}, {"rdfentry_"}); // progress display 
   cout << endl;
@@ -1207,6 +1207,7 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     dd.Snapshot("t", fileOut, definedNames);
 
   cout << "Removing generated additional dictionaries..." << endl;
+  gSystem->Exec("rm AutoDict_*");
   
   timer.Stop();
   timer.Print();
