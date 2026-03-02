@@ -38,10 +38,11 @@ bool isGoodSimTrack(const MpdMCTrack &track, const RVec<MpdMCTrack> &assocMcTrac
   auto startX = track.GetStartX();
   auto startY = track.GetStartY();
   auto startZ = track.GetStartZ();
+  auto pid_sel = track.GetPdgCode();
   auto startR = sqrt(startX*startX+startY*startY);
   auto dist = sqrt(pow(mcvtxX-startX,2)+pow(mcvtxY-startY,2)+pow(mcvtxZ-startZ,2));
   //if ( startR>=140. && abs(startZ)>=140. ) return false; // reject mc tracks outside of the TPC region
-  if (dist>=5. && track.GetNPoints(kTPC)<=0) return false; // reject mc tracks with dist>5 cm and 0 mc points in TPC
+  if (dist>=5. && track.GetNPoints(kTPC)<=0 && pid_sel!=3122) return false; // reject mc tracks with dist>5 cm and 0 mc points in TPC
   return true;
 }
 
@@ -94,7 +95,23 @@ RVec<int> simMotherId(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &as
       continue;
     mothId.push_back(track.GetMotherId());
   }
+//  std::cout<<"moth id vec size="<<mothId.size()<<std::endl;
   return mothId;
+}
+RVec<int> simMatchMotherIdSize(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ)
+{
+  vector<int> pos;
+  int iterator =0;
+  for (auto& track:tracks) {
+    if (!isGoodSimTrack(track, assocMcTracks, mcvtxX, mcvtxY, mcvtxZ)){
+	pos.push_back(-999);
+      continue;
+	}
+    pos.push_back(iterator);
+    iterator++;
+  }
+ // std::cout<<"matchvec size="<<pos.size()<<std::endl;
+  return pos;
 }
 
 RVec<int> simPdg(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ)
@@ -106,6 +123,96 @@ RVec<int> simPdg(const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMc
     pdg.push_back(track.GetPdgCode());
   }
   return pdg;
+}
+vector<std::vector<double>> PolarVec( RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ)
+{
+	std::vector<double> pvec;
+	vector<std::vector<double>> pvec_a;
+	for(auto& track:tracks){
+		if(!isGoodSimTrack(track, assocMcTracks, mcvtxX, mcvtxY, mcvtxZ))
+      		continue;
+		pvec.push_back(track.GetPolar(0));
+		pvec.push_back(track.GetPolar(1));
+		pvec.push_back(track.GetPolar(2));
+		pvec_a.push_back(pvec);
+		
+			
+	}
+	return pvec_a;
+}
+vector<std::vector<double>> MCPolVecMap(std::map<int,ROOT::Math::XYZVector> polmap, RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ,double psi)
+{	std::vector<double> pvec;
+        vector<std::vector<double>> pvec_a;
+	int i=0;
+   /*     for(auto& track:tracks){
+                if(!isGoodSimTrack(track, assocMcTracks, mcvtxX, mcvtxY, mcvtxZ)){
+			i++;
+                continue;}
+		if(track.GetPdgCode()!=3122){
+			pvec.push_back(0.5);
+			pvec.push_back(0.5);
+			pvec.push_back(0.5);
+			pvec_a.push_back(pvec);
+                i++;
+		continue;
+		}
+		ROOT::Math::RotationZ rotateRP(-psi);
+	        polmap[i] = rotateRP*polmap[i];  // rotate reaction plane			
+                pvec.push_back(polmap[i].X());
+                pvec.push_back(polmap[i].Y());
+                pvec.push_back(polmap[i].Z());
+                pvec_a.push_back(pvec);
+		i++;}*/
+
+	for(auto& track:tracks){
+                if(!isGoodSimTrack(track, assocMcTracks, mcvtxX, mcvtxY, mcvtxZ)){
+                i++;
+                continue;
+                }
+                if(polmap.count(i))
+                {
+			ROOT::Math::RotationZ rotateRP(-psi);
+                polmap[i] = rotateRP*polmap[i];  // rotate reaction plane                       
+                pvec.push_back(polmap[i].X());
+                pvec.push_back(polmap[i].Y());
+                pvec.push_back(polmap[i].Z());
+                pvec_a.push_back(pvec);
+                        i++;
+                        continue;
+                }
+                pvec.push_back(-999);
+		pvec.push_back(-999);
+                        pvec.push_back(-999);
+                        pvec_a.push_back(pvec);
+                i++;
+        }
+
+	
+	return pvec_a;
+}
+std::map<int,int> MCGenIDMap(std::map<int,int> genmap)
+{		
+        return genmap;
+}
+RVec<int> assocMcMap(RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ, std::map<int,int> genmap)
+{
+	int i=0;
+	vector<int> assocmcmap;
+	for(auto& track:tracks){
+                if(!isGoodSimTrack(track, assocMcTracks, mcvtxX, mcvtxY, mcvtxZ)){
+		i++;
+                continue;
+		}
+		if(genmap.count(i))
+		{
+			assocmcmap.push_back(genmap[i]);	
+			i++;
+			continue;						
+		}
+		assocmcmap.push_back(-900);
+		i++;
+	}
+	return assocmcmap;
 }
 
 RVec<bool> hasHitFhcal (const RVec<MpdMCTrack> &tracks, const RVec<MpdMCTrack> &assocMcTracks, double mcvtxX, double mcvtxY, double mcvtxZ)
@@ -1003,8 +1110,7 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
   timer.Start();
 
   cout << "Creating additional dictionary for IO..." << endl;
-  gInterpreter->GenerateDictionary("vector<vector<float>>");
-  
+ gSystem->Load("/scratch2/troshin/mpd_hyperons/mpdConvert/AutoDict_vector_vector_float___cxx.so");
   TChain *chainRec=makeChain(inDst, "mpdsim");
   ROOT::RDataFrame d(*chainRec);
 
@@ -1059,6 +1165,7 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     .Define("simMom", simMomentum, {"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
     .Define("simPosStart", simPosStart, {"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
     .Define("simMotherId", simMotherId, {"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
+    .Define("simMatchMotherIdSize", simMatchMotherIdSize, {"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
     .Define("simPdg", simPdg, {"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
     .Define("simCharge", simCharge, {"simPdg"})
     .Define("simHasHitFHCal", hasHitFhcal, {"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
@@ -1068,13 +1175,17 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     .Define("fhcalModPos", [fhcalModPos](){return fhcalModPos; })
     .Define("fhcalModId", moduleId, {"fhcalModPos"})
     .Define("fhcalModE",fhcalModE,{"ZdcDigi", "fhcalModId"})
-    .Define("emcMult", emcClusterMult,    {"EmcCluster"})
-    .Define("emcEnergy", emcClusterEnergy,{"EmcCluster"})
-    .Define("emcPos", emcClusterPos,      {"EmcCluster"})
-    .Define("emcChi2", emcClusterChi2,    {"EmcCluster"})
-    .Define("emcTime", emcClusterTime,    {"EmcCluster"})
-    .Define("emcDPhi", emcClusterDPhi,    {"EmcCluster"})
-    .Define("emcDZ", emcClusterDZ,        {"EmcCluster"})
+    .Define("PolarVec", PolarVec,{"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ"})
+    .Define("fMCPolVecMap",MCPolVecMap,{"MCPolVecMap","MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ","mcRP"})
+    .Define("fMCGenIDMap",MCGenIDMap,{"MCGenIDMap"})
+    .Define("AssocMcMap",assocMcMap,{"MCTrack", "simAssocTracks", "MCEventHeader.fX", "MCEventHeader.fY", "MCEventHeader.fZ","MCGenIDMap"})
+  //  .Define("emcMult", emcClusterMult,    {"EmcCluster"})
+  //  .Define("emcEnergy", emcClusterEnergy,{"EmcCluster"})
+  //  .Define("emcPos", emcClusterPos,      {"EmcCluster"})
+  //  .Define("emcChi2", emcClusterChi2,    {"EmcCluster"})
+  //  .Define("emcTime", emcClusterTime,    {"EmcCluster"})
+  //  .Define("emcDPhi", emcClusterDPhi,    {"EmcCluster"})
+  //  .Define("emcDZ", emcClusterDZ,        {"EmcCluster"})
   ;
   dd.Foreach([](ULong64_t evtId){if (evtId % 100 == 0) cout << "\r" << evtId;}, {"rdfentry_"}); // progress display 
   cout << endl;
@@ -1096,7 +1207,6 @@ void convertMPD(string inDst="", string fileOut="", string inGeo="")
     dd.Snapshot("t", fileOut, definedNames);
 
   cout << "Removing generated additional dictionaries..." << endl;
-  gSystem->Exec("rm AutoDict_*");
   
   timer.Stop();
   timer.Print();
