@@ -9,6 +9,15 @@ using namespace ROOT;
 using namespace ROOT::Math;
 using fourVector=LorentzVector<PtEtaPhiE4D<double>>;
 
+std::vector<int> x1_modules = { 0, 1, 5, 6, 7, 12, 13, 14 };
+std::vector<int> x2_modules = { 26, 27, 28, 33, 34, 35, 40, 41 };
+std::vector<int> x3_modules = { 30, 31, 32, 37, 38, 39, 43, 44 };
+std::vector<int> x4_modules = { 3, 4, 9, 10, 11, 16, 17, 18 };
+
+const std::pair<double, double> tof_pos_cut = {-200., -100.};
+const std::pair<double, double> emc_pos_cut = {-200., -100.};
+
+
 TChain* makeChain(string& filename, const char* treename) {
   cout << "Adding files to chain:" << endl;
   TChain *chain = new TChain(treename);
@@ -35,6 +44,7 @@ void connectBranch(TChain *chain, const char *name, T *address)
   chain->SetBranchAddress(name, address);
 }
 
+namespace ep{
 struct Track
 {
   fourVector mom;
@@ -145,7 +155,7 @@ public:
 
   Long64_t GetEntries() { return fChain->GetEntries(); }
 
-  bool ReadEvent(Long64_t entry, Event &event)
+  bool ReadEvent(Long64_t entry, ep::Event &event)
   {
     event.Clear();
     if (fChain->GetEntry(entry) <= 0)
@@ -221,12 +231,83 @@ private:
   RVec<float> *emcDZ{nullptr};
 };
 
+Float_t GetCentTofMult(Int_t mult)
+// Returns the centrality (middle of the class, in percent) for a given multiplicity, or -1
+{
+  Float_t minCentPercent [20] = { 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95 };
+  Float_t maxCentPercent [20] = { 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100 };
+  Int_t minMult [20] = { 263, 233, 210, 190, 172, 157, 144, 132, 122, 113, 105, 98, 91, 86, 81, 76, 71, 66, 59, 1 };
+  Int_t maxMult [20] = { 526, 263, 233, 210, 190, 172, 157, 144, 132, 122, 113, 105, 98, 91, 86, 81, 76, 71, 66, 59 };
+        Int_t centBin = -1;
+        for (Int_t i = 0; i < 20; i++)
+        {
+                if (mult >= minMult[i] && mult < maxMult[i])
+                        centBin = i;
+        }
+        if (centBin == -1) return -1.;
+        return (maxCentPercent[centBin] - minCentPercent[centBin]) / 2. + minCentPercent[centBin];
+}
+
+Float_t GetCentRefMult(Int_t mult)
+// Returns the centrality (middle of the class, in percent) for a given multiplicity, or -1
+{
+  Float_t minCentPercent [20] = { 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95 };
+  Float_t maxCentPercent [20] = { 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100 };
+  Int_t minMult [20] = { 98, 84, 73, 63, 55, 47, 41, 35, 30, 25, 21, 17, 14, 11, 9, 7, 5, 4, 2, 1 };
+  Int_t maxMult [20] = { 201, 98, 84, 73, 63, 55, 47, 41, 35, 30, 25, 21, 17, 14, 11, 9, 7, 5, 4, 2 };
+
+        Int_t centBin = -1;
+        for (Int_t i = 0; i < 20; i++)
+        {
+                if (mult >= minMult[i] && mult < maxMult[i])
+                        centBin = i;
+        }
+        if (centBin == -1) return -1.;
+        return (maxCentPercent[centBin] - minCentPercent[centBin]) / 2. + minCentPercent[centBin];
+}
+
+Float_t GetCentEmcMult(Int_t mult)
+// Returns the centrality (middle of the class, in percent) for a given multiplicity, or -1
+{
+  Float_t minCentPercent [20] = { 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95 };
+  Float_t maxCentPercent [20] = { 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100 };
+  Int_t minMult [20] = { 191, 167, 148, 131, 117, 104, 93, 84, 75, 67, 61, 55, 50, 45, 42, 38, 35, 31, 27, 1 };
+  Int_t maxMult [20] = { 377, 191, 167, 148, 131, 117, 104, 93, 84, 75, 67, 61, 55, 50, 45, 42, 38, 35, 31, 27 };
+        Int_t centBin = -1;
+        for (Int_t i = 0; i < 20; i++)
+        {
+                if (mult >= minMult[i] && mult < maxMult[i])
+                        centBin = i;
+        }
+        if (centBin == -1) return -1.;
+        return (maxCentPercent[centBin] - minCentPercent[centBin]) / 2. + minCentPercent[centBin];
+}
+
+Float_t GetCentEtotMult(Double_t mult)
+// Returns the centrality (middle of the class, in percent) for a given multiplicity, or -1
+{
+  Float_t minCentPercent [20] = { 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95 };
+  Float_t maxCentPercent [20] = { 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100 };
+  Double_t minMult [20] = { 49.2, 42.5, 37.2, 32.6, 28.7, 25.3, 22.3, 19.6, 17.2, 15.1, 13.2, 11.6, 10.2, 9, 7.9, 7, 6.2, 5.4, 4.5, 0 };
+  Double_t maxMult [20] = { 102.4, 49.2, 42.5, 37.2, 32.6, 28.7, 25.3, 22.3, 19.6, 17.2, 15.1, 13.2, 11.6, 10.2, 9, 7.9, 7, 6.2, 5.4, 4.5 };
+        Int_t centBin = -1;
+        for (Int_t i = 0; i < 20; i++)
+        {
+                if (mult >= minMult[i] && mult < maxMult[i])
+                        centBin = i;
+        }
+        if (centBin == -1) return -1.;
+        return (maxCentPercent[centBin] - minCentPercent[centBin]) / 2. + minCentPercent[centBin];
+}
+
+  }
+
 void runEP_step1(string fileIn="", string fileOut="", Long64_t nMaxEvents=-1)
 {
   TStopwatch timer;
   timer.Start();
 
-  EventReader reader(fileIn);
+  ep::EventReader reader(fileIn);
   Long64_t nEvents = reader.GetEntries();
   if (nMaxEvents > 0 && nMaxEvents < nEvents)
     nEvents = nMaxEvents;
@@ -238,29 +319,324 @@ void runEP_step1(string fileIn="", string fileOut="", Long64_t nMaxEvents=-1)
 
   TFile fOut(fileOut.c_str(), "recreate");
 
-  Event event;
+  TH1D *h_tof_cent = new TH1D("h_tof_cent", "Centrality diestribution (TOF)", 20, 0., 100.);
+  TH1D *h_emc_cent = new TH1D("h_emc_cent", "Centrality diestribution (EMC hits)", 20, 0., 100.);
+  TH1D *h_tpc_cent = new TH1D("h_tpc_cent", "Centrality diestribution (TPC)", 20, 0., 100.);
+  TH1D *h_etot_cent = new TH1D("h_etot_cent", "Centrality diestribution (EMC E)", 20, 0., 100.);
+  TH1D *h_tofmult = new TH1D("h_tofmult", "N_{hits}^{TOF}", 1000, 0., 1000.);
+  TH1D *h_emcmult = new TH1D("h_emcmult", "N_{hits}^{EMC}", 1000, 0., 1000.);
+  TH1D *h_tpcmult = new TH1D("h_tpcmult", "N_{ch}^{TPC}", 1000, 0., 1000.);
+  TH1D *h_etot = new TH1D("h_etot", "E_{tot}^{EMC}", 1000, 0., 1000.);
+
+  TH2D *h2_tof_emc_cent = new TH2D("h2_tof_emc_cent", "Centralities from TOF & EMC (hits);Centrality(TOF), %;Centrality (EMC), %", 20, 0., 100., 20, 0., 100.);
+  TH2D *h2_tof_etot_cent = new TH2D("h2_tof_etot_cent", "Centralities from TOF & EMC (Etot);Centrality(TOF), %;Centrality (EMC), %", 20, 0., 100., 20, 0., 100.);
+  TH2D *h2_tof_tpc_cent = new TH2D("h2_tof_tpc_cent", "Centralities from TOF & EMC (hits);Centrality(TOF), %;Centrality (TPC), %", 20, 0., 100., 20, 0., 100.);
+  TH2D *h2_emc_tpc_cent = new TH2D("h2_emc_tpc_cent", "Centralities from EMC (hits) & TPC;Centrality(EMC), %;Centrality (TPC), %", 20, 0., 100., 20, 0., 100.);
+  TH2D *h2_etot_tpc_cent = new TH2D("h2_etot_tpc_cent", "Centralities from EMC (Etot) & TPC;Centrality(EMC), %;Centrality (TPC), %", 20, 0., 100., 20, 0., 100.);
+  TH2D *h2_emc_etot_cent = new TH2D("h2_emc_etot_cent", "Centralities from EMC (hits) & EMC (hits);Centrality(EMC hits), %;Centrality (EMC Etot), %", 20, 0., 100., 20, 0., 100.);
+
+  TH2D *h2_fhcal_xy_x1 = new TH2D("h2_fhcal_xy_x1","(XY) positions of FHCal (X1 sub-event)", 7, -52.5, 52.5, 7, -52.5, 52.5);
+  TH2D *h2_fhcal_xy_x2 = new TH2D("h2_fhcal_xy_x2","(XY) positions of FHCal (X2 sub-event)", 7, -52.5, 52.5, 7, -52.5, 52.5);
+  TH2D *h2_fhcal_xy_x3 = new TH2D("h2_fhcal_xy_x3","(XY) positions of FHCal (X3 sub-event)", 7, -52.5, 52.5, 7, -52.5, 52.5);
+  TH2D *h2_fhcal_xy_x4 = new TH2D("h2_fhcal_xy_x4","(XY) positions of FHCal (X4 sub-event)", 7, -52.5, 52.5, 7, -52.5, 52.5);
+
+  TH1D *h1_tof_posz = new TH1D("h1_tof_posz", "Z-position of TOF hits", 600, -300., 300.);
+  TH1D *h1_tof_posz_after_cut = new TH1D("h1_tof_posz_after_cut", "Z-position of TOF hits after Z-pos cut", 600, -300., 300.);
+  TH1D *h1_emc_posz = new TH1D("h1_emc_posz", "Z-position of EMC hits", 600, -300., 300.);
+  TH1D *h1_emc_posz_after_cut = new TH1D("h1_emc_posz_after_cut", "Z-position of EMC hits after Z-pos cut", 600, -300., 300.);
+
+  // Profiles for recentering
+  TProfile *p_avg_qx_fhcal_x1 = new TProfile("p_avg_qx_fhcal_x1", "<Qx> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_qx_fhcal_x2 = new TProfile("p_avg_qx_fhcal_x2", "<Qx> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_qx_fhcal_x3 = new TProfile("p_avg_qx_fhcal_x3", "<Qx> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_qx_fhcal_x4 = new TProfile("p_avg_qx_fhcal_x4", "<Qx> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_qx_tof = new TProfile("p_avg_qx_tof", "<Qx> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_qx_emc = new TProfile("p_avg_qx_emc", "<Qx> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_qy_fhcal_x1 = new TProfile("p_avg_qy_fhcal_x1", "<Qy> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_qy_fhcal_x2 = new TProfile("p_avg_qy_fhcal_x2", "<Qy> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_qy_fhcal_x3 = new TProfile("p_avg_qy_fhcal_x3", "<Qy> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_qy_fhcal_x4 = new TProfile("p_avg_qy_fhcal_x4", "<Qy> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_qy_tof = new TProfile("p_avg_qy_tof", "<Qy> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_qy_emc = new TProfile("p_avg_qy_emc", "<Qy> of EMC vs centrality from TOF", 20, 0., 100.);
+
+  // Profiles for shift correction (flattening)
+  TProfile *p_avg_cos1_fhcal_x1 = new TProfile("p_avg_cos1_fhcal_x1", "<cos1> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos2_fhcal_x1 = new TProfile("p_avg_cos2_fhcal_x1", "<cos2> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos3_fhcal_x1 = new TProfile("p_avg_cos3_fhcal_x1", "<cos3> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos4_fhcal_x1 = new TProfile("p_avg_cos4_fhcal_x1", "<cos4> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos5_fhcal_x1 = new TProfile("p_avg_cos5_fhcal_x1", "<cos5> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos6_fhcal_x1 = new TProfile("p_avg_cos6_fhcal_x1", "<cos6> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos7_fhcal_x1 = new TProfile("p_avg_cos7_fhcal_x1", "<cos7> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos8_fhcal_x1 = new TProfile("p_avg_cos8_fhcal_x1", "<Cos8> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin1_fhcal_x1 = new TProfile("p_avg_sin1_fhcal_x1", "<sin1> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin2_fhcal_x1 = new TProfile("p_avg_sin2_fhcal_x1", "<sin2> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin3_fhcal_x1 = new TProfile("p_avg_sin3_fhcal_x1", "<sin3> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin4_fhcal_x1 = new TProfile("p_avg_sin4_fhcal_x1", "<sin4> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin5_fhcal_x1 = new TProfile("p_avg_sin5_fhcal_x1", "<sin5> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin6_fhcal_x1 = new TProfile("p_avg_sin6_fhcal_x1", "<sin6> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin7_fhcal_x1 = new TProfile("p_avg_sin7_fhcal_x1", "<sin7> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin8_fhcal_x1 = new TProfile("p_avg_sin8_fhcal_x1", "<sin8> of FHCal X1 vs centrality from TOF", 20, 0., 100.);
+
+  TProfile *p_avg_cos1_fhcal_x2 = new TProfile("p_avg_cos1_fhcal_x2", "<cos1> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos2_fhcal_x2 = new TProfile("p_avg_cos2_fhcal_x2", "<cos2> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos3_fhcal_x2 = new TProfile("p_avg_cos3_fhcal_x2", "<cos3> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos4_fhcal_x2 = new TProfile("p_avg_cos4_fhcal_x2", "<cos4> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos5_fhcal_x2 = new TProfile("p_avg_cos5_fhcal_x2", "<cos5> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos6_fhcal_x2 = new TProfile("p_avg_cos6_fhcal_x2", "<cos6> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos7_fhcal_x2 = new TProfile("p_avg_cos7_fhcal_x2", "<cos7> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos8_fhcal_x2 = new TProfile("p_avg_cos8_fhcal_x2", "<Cos8> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin1_fhcal_x2 = new TProfile("p_avg_sin1_fhcal_x2", "<sin1> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin2_fhcal_x2 = new TProfile("p_avg_sin2_fhcal_x2", "<sin2> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin3_fhcal_x2 = new TProfile("p_avg_sin3_fhcal_x2", "<sin3> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin4_fhcal_x2 = new TProfile("p_avg_sin4_fhcal_x2", "<sin4> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin5_fhcal_x2 = new TProfile("p_avg_sin5_fhcal_x2", "<sin5> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin6_fhcal_x2 = new TProfile("p_avg_sin6_fhcal_x2", "<sin6> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin7_fhcal_x2 = new TProfile("p_avg_sin7_fhcal_x2", "<sin7> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin8_fhcal_x2 = new TProfile("p_avg_sin8_fhcal_x2", "<sin8> of FHCal X2 vs centrality from TOF", 20, 0., 100.);
+
+  TProfile *p_avg_cos1_fhcal_x3 = new TProfile("p_avg_cos1_fhcal_x3", "<cos1> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos2_fhcal_x3 = new TProfile("p_avg_cos2_fhcal_x3", "<cos2> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos3_fhcal_x3 = new TProfile("p_avg_cos3_fhcal_x3", "<cos3> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos4_fhcal_x3 = new TProfile("p_avg_cos4_fhcal_x3", "<cos4> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos5_fhcal_x3 = new TProfile("p_avg_cos5_fhcal_x3", "<cos5> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos6_fhcal_x3 = new TProfile("p_avg_cos6_fhcal_x3", "<cos6> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos7_fhcal_x3 = new TProfile("p_avg_cos7_fhcal_x3", "<cos7> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos8_fhcal_x3 = new TProfile("p_avg_cos8_fhcal_x3", "<Cos8> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin1_fhcal_x3 = new TProfile("p_avg_sin1_fhcal_x3", "<sin1> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin2_fhcal_x3 = new TProfile("p_avg_sin2_fhcal_x3", "<sin2> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin3_fhcal_x3 = new TProfile("p_avg_sin3_fhcal_x3", "<sin3> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin4_fhcal_x3 = new TProfile("p_avg_sin4_fhcal_x3", "<sin4> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin5_fhcal_x3 = new TProfile("p_avg_sin5_fhcal_x3", "<sin5> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin6_fhcal_x3 = new TProfile("p_avg_sin6_fhcal_x3", "<sin6> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin7_fhcal_x3 = new TProfile("p_avg_sin7_fhcal_x3", "<sin7> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin8_fhcal_x3 = new TProfile("p_avg_sin8_fhcal_x3", "<sin8> of FHCal X3 vs centrality from TOF", 20, 0., 100.);
+
+  TProfile *p_avg_cos1_fhcal_x4 = new TProfile("p_avg_cos1_fhcal_x4", "<cos1> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos2_fhcal_x4 = new TProfile("p_avg_cos2_fhcal_x4", "<cos2> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos3_fhcal_x4 = new TProfile("p_avg_cos3_fhcal_x4", "<cos3> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos4_fhcal_x4 = new TProfile("p_avg_cos4_fhcal_x4", "<cos4> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos5_fhcal_x4 = new TProfile("p_avg_cos5_fhcal_x4", "<cos5> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos6_fhcal_x4 = new TProfile("p_avg_cos6_fhcal_x4", "<cos6> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos7_fhcal_x4 = new TProfile("p_avg_cos7_fhcal_x4", "<cos7> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos8_fhcal_x4 = new TProfile("p_avg_cos8_fhcal_x4", "<Cos8> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin1_fhcal_x4 = new TProfile("p_avg_sin1_fhcal_x4", "<sin1> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin2_fhcal_x4 = new TProfile("p_avg_sin2_fhcal_x4", "<sin2> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin3_fhcal_x4 = new TProfile("p_avg_sin3_fhcal_x4", "<sin3> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin4_fhcal_x4 = new TProfile("p_avg_sin4_fhcal_x4", "<sin4> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin5_fhcal_x4 = new TProfile("p_avg_sin5_fhcal_x4", "<sin5> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin6_fhcal_x4 = new TProfile("p_avg_sin6_fhcal_x4", "<sin6> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin7_fhcal_x4 = new TProfile("p_avg_sin7_fhcal_x4", "<sin7> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin8_fhcal_x4 = new TProfile("p_avg_sin8_fhcal_x4", "<sin8> of FHCal X4 vs centrality from TOF", 20, 0., 100.);
+
+  TProfile *p_avg_cos1_tof = new TProfile("p_avg_cos1_tof", "<cos1> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos2_tof = new TProfile("p_avg_cos2_tof", "<cos2> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos3_tof = new TProfile("p_avg_cos3_tof", "<cos3> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos4_tof = new TProfile("p_avg_cos4_tof", "<cos4> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos5_tof = new TProfile("p_avg_cos5_tof", "<cos5> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos6_tof = new TProfile("p_avg_cos6_tof", "<cos6> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos7_tof = new TProfile("p_avg_cos7_tof", "<cos7> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos8_tof = new TProfile("p_avg_cos8_tof", "<Cos8> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin1_tof = new TProfile("p_avg_sin1_tof", "<sin1> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin2_tof = new TProfile("p_avg_sin2_tof", "<sin2> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin3_tof = new TProfile("p_avg_sin3_tof", "<sin3> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin4_tof = new TProfile("p_avg_sin4_tof", "<sin4> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin5_tof = new TProfile("p_avg_sin5_tof", "<sin5> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin6_tof = new TProfile("p_avg_sin6_tof", "<sin6> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin7_tof = new TProfile("p_avg_sin7_tof", "<sin7> of TOF vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin8_tof = new TProfile("p_avg_sin8_tof", "<sin8> of TOF vs centrality from TOF", 20, 0., 100.);
+
+  TProfile *p_avg_cos1_emc = new TProfile("p_avg_cos1_emc", "<cos1> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos2_emc = new TProfile("p_avg_cos2_emc", "<cos2> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos3_emc = new TProfile("p_avg_cos3_emc", "<cos3> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos4_emc = new TProfile("p_avg_cos4_emc", "<cos4> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos5_emc = new TProfile("p_avg_cos5_emc", "<cos5> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos6_emc = new TProfile("p_avg_cos6_emc", "<cos6> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos7_emc = new TProfile("p_avg_cos7_emc", "<cos7> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_cos8_emc = new TProfile("p_avg_cos8_emc", "<Cos8> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin1_emc = new TProfile("p_avg_sin1_emc", "<sin1> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin2_emc = new TProfile("p_avg_sin2_emc", "<sin2> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin3_emc = new TProfile("p_avg_sin3_emc", "<sin3> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin4_emc = new TProfile("p_avg_sin4_emc", "<sin4> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin5_emc = new TProfile("p_avg_sin5_emc", "<sin5> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin6_emc = new TProfile("p_avg_sin6_emc", "<sin6> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin7_emc = new TProfile("p_avg_sin7_emc", "<sin7> of EMC vs centrality from TOF", 20, 0., 100.);
+  TProfile *p_avg_sin8_emc = new TProfile("p_avg_sin8_emc", "<sin8> of EMC vs centrality from TOF", 20, 0., 100.);
+
+  // Profiles for <QQ> and <cos(1-2)>, <sin(1-2)> correlations
+
+
+  ep::Event event;
+  double qx_fhcal_x1, qx_fhcal_x2, qx_fhcal_x3, qx_fhcal_x4;
+  double qx_tof, qx_emc;
+  double qy_fhcal_x1, qy_fhcal_x2, qy_fhcal_x3, qy_fhcal_x4;
+  double qy_tof, qy_emc;
+  double sumw_fhcal_x1, sumw_fhcal_x2, sumw_fhcal_x3, sumw_fhcal_x4;
+  double sumw_tof, sumw_emc;
+  double psi_fhcal_x1, psi_fhcal_x2, psi_fhcal_x3, psi_fhcal_x4;
+  double psi_tof, psi_emc;
+
   for (Long64_t iEv=0; iEv<nEvents; ++iEv) {
     if (iEv % 100 == 0) cout << "\r" << iEv << flush;
     if (!reader.ReadEvent(iEv, event))
       continue;
 
+    int tofmult = event.tofHits.size();
+    float cent = ep::GetCentTofMult(tofmult);
+    if (cent < 0) continue;
+
+    int refmult = 0;
     for (const auto &track : event.tracks) {
-      // TODO: track loop
+      if (track.nhits < 16) continue;
+      if (track.mom.Pt() < 0.2) continue;
+      if (track.mom.Pt() > 2.0) continue;
+      if (track.mom.Eta() < 0.5) continue;
+      if (track.mom.Eta() > 2.0) continue;
+      refmult++;
     }
+    float cent_tpc = ep::GetCentRefMult(refmult);
 
-    for (const auto &module : event.fhcalModules) {
-      // TODO: FHCal module loop
+    // for (const auto &module : event.fhcalModules) {
+    //   // TODO: FHCal module loop
+    // }
+
+    qx_fhcal_x1 = 0.; qy_fhcal_x1 = 0.; sumw_fhcal_x1 = 0.; psi_fhcal_x1 = 0.;
+    for (const auto &modid:x1_modules) {
+      auto fhcalmod = event.fhcalModules.at(modid);
+      h2_fhcal_xy_x1->Fill(fhcalmod.pos.x(), fhcalmod.pos.y(), fhcalmod.energy);
+      qx_fhcal_x1 += fhcalmod.energy * cos( 1. * fhcalmod.pos.phi() );
+      qy_fhcal_x1 += fhcalmod.energy * sin( 1. * fhcalmod.pos.phi() );
+      sumw_fhcal_x1 += fhcalmod.energy;
     }
+    psi_fhcal_x1 = 1./1. * atan2(qy_fhcal_x1, qx_fhcal_x1);
 
+    qx_fhcal_x2 = 0.; qy_fhcal_x2 = 0.; sumw_fhcal_x2 = 0.; psi_fhcal_x2 = 0.;
+    for (const auto &modid:x2_modules) {
+      auto fhcalmod = event.fhcalModules.at(modid);
+      h2_fhcal_xy_x2->Fill(fhcalmod.pos.x(), fhcalmod.pos.y(), fhcalmod.energy);
+      qx_fhcal_x2 += fhcalmod.energy * cos( 1. * fhcalmod.pos.phi() );
+      qy_fhcal_x2 += fhcalmod.energy * sin( 1. * fhcalmod.pos.phi() );
+      sumw_fhcal_x2 += fhcalmod.energy;
+    }
+    psi_fhcal_x2 = 1./1. * atan2(qy_fhcal_x2, qx_fhcal_x2);
+
+    qx_fhcal_x3 = 0.; qy_fhcal_x3 = 0.; sumw_fhcal_x3 = 0.; psi_fhcal_x3 = 0.;
+    for (const auto &modid:x3_modules) {
+      auto fhcalmod = event.fhcalModules.at(modid);
+      h2_fhcal_xy_x3->Fill(fhcalmod.pos.x(), fhcalmod.pos.y(), fhcalmod.energy);
+      qx_fhcal_x3 += fhcalmod.energy * cos( 1. * fhcalmod.pos.phi() );
+      qy_fhcal_x3 += fhcalmod.energy * sin( 1. * fhcalmod.pos.phi() );
+      sumw_fhcal_x3 += fhcalmod.energy;
+    }
+    psi_fhcal_x3 = 1./1. * atan2(qy_fhcal_x3, qx_fhcal_x3);
+
+    qx_fhcal_x4 = 0.; qy_fhcal_x4 = 0.; sumw_fhcal_x4 = 0.; psi_fhcal_x4 = 0.;
+    for (const auto &modid:x4_modules) {
+      auto fhcalmod = event.fhcalModules.at(modid);
+      h2_fhcal_xy_x4->Fill(fhcalmod.pos.x(), fhcalmod.pos.y(), fhcalmod.energy);
+      qx_fhcal_x4 += fhcalmod.energy * cos( 1. * fhcalmod.pos.phi() );
+      qy_fhcal_x4 += fhcalmod.energy * sin( 1. * fhcalmod.pos.phi() );
+      sumw_fhcal_x4 += fhcalmod.energy;
+    }
+    psi_fhcal_x4 = 1./1. * atan2(qy_fhcal_x4, qx_fhcal_x4);
+
+    qx_tof = 0.; qy_tof = 0.; sumw_tof = 0.; psi_tof = 0.;
     for (const auto &hit : event.tofHits) {
-      // TODO: TOF hit loop
+      h1_tof_posz->Fill(hit.pos.z());
+      if (hit.pos.z() < tof_pos_cut.first) continue;
+      if (hit.pos.z() > tof_pos_cut.second) continue;
+      h1_tof_posz_after_cut->Fill(hit.pos.z());
+      qx_tof += cos( 1. * hit.pos.phi() );
+      qy_tof += sin( 1. * hit.pos.phi() );
+      sumw_tof++;
     }
+    psi_tof = 1./1. * atan2(qy_tof, qx_tof);
 
+    int emcmult = 0; double emcetot = 0.;
+    qx_emc = 0.; qy_emc = 0.; sumw_emc = 0.; psi_emc = 0.;
     for (const auto &cluster : event.emcClusters) {
-      // TODO: EMC cluster loop
+      h1_emc_posz->Fill(cluster.pos.z());
+      if (cluster.mult <= 1) continue;
+      if (cluster.energy < 0.05) continue;
+      emcmult++;
+      emcetot += cluster.energy;
+      if (cluster.pos.z() < emc_pos_cut.first) continue;
+      if (cluster.pos.z() > emc_pos_cut.second) continue;
+      h1_emc_posz_after_cut->Fill(cluster.pos.z());
+      qx_emc += cluster.energy * cos( 1. * cluster.pos.phi() );
+      qy_emc += cluster.energy * sin( 1. * cluster.pos.phi() );
+      sumw_emc += cluster.energy;
     }
+    psi_emc = 1./1. * atan2(qy_emc, qx_emc);
+
+    float cent_emc = ep::GetCentEmcMult(emcmult);
+    float cent_etot = ep::GetCentEtotMult(emcetot);
+    h_tpcmult->Fill(refmult);
+    h_tofmult->Fill(tofmult);
+    h_emcmult->Fill(emcmult);
+    h_etot->Fill(emcetot);
+    h_tpc_cent->Fill(cent_tpc);
+    h_tof_cent->Fill(cent);
+    h_emc_cent->Fill(cent_emc);
+    h_etot_cent->Fill(cent_etot);
+    h2_tof_emc_cent->Fill(cent, cent_emc);
+    h2_tof_etot_cent->Fill(cent, cent_etot);
+    h2_tof_tpc_cent->Fill(cent, cent_tpc);
+    h2_emc_tpc_cent->Fill(cent_emc, cent_tpc);
+    h2_etot_tpc_cent->Fill(cent_etot, cent_tpc);
+    h2_emc_etot_cent->Fill(cent_emc, cent_etot);
+
+    p_avg_qx_fhcal_x1->Fill(cent, qx_fhcal_x1);
+    p_avg_qy_fhcal_x1->Fill(cent, qy_fhcal_x1);
+    p_avg_qx_fhcal_x2->Fill(cent, qx_fhcal_x2);
+    p_avg_qy_fhcal_x2->Fill(cent, qy_fhcal_x2);
+    p_avg_qx_fhcal_x3->Fill(cent, qx_fhcal_x3);
+    p_avg_qy_fhcal_x3->Fill(cent, qy_fhcal_x3);
+    p_avg_qx_fhcal_x4->Fill(cent, qx_fhcal_x4);
+    p_avg_qy_fhcal_x4->Fill(cent, qy_fhcal_x4);
+    p_avg_qx_tof->Fill(cent, qx_tof);
+    p_avg_qy_tof->Fill(cent, qy_tof);
+    p_avg_qx_emc->Fill(cent, qx_emc);
+    p_avg_qy_emc->Fill(cent, qy_emc);
   }
-  cout << endl;
+
+  // Write output
+  h_tpcmult->Write();
+  h_tofmult->Write();
+  h_emcmult->Write();
+  h_etot->Write();
+  h_tpc_cent->Write();
+  h_tof_cent->Write();
+  h_emc_cent->Write();
+  h_etot_cent->Write();
+  h2_tof_emc_cent->Write();
+  h2_tof_etot_cent->Write();
+  h2_tof_tpc_cent->Write();
+  h2_emc_tpc_cent->Write();
+  h2_etot_tpc_cent->Write();
+  h2_emc_etot_cent->Write();
+
+  h2_fhcal_xy_x1->Write();
+  h2_fhcal_xy_x2->Write();
+  h2_fhcal_xy_x3->Write();
+  h2_fhcal_xy_x4->Write();
+
+  h1_tof_posz->Write();
+  h1_tof_posz_after_cut->Write();
+  h1_emc_posz->Write();
+  h1_emc_posz_after_cut->Write();
+
+  p_avg_qx_fhcal_x1->Write();
+  p_avg_qy_fhcal_x1->Write();
+  p_avg_qx_fhcal_x2->Write();
+  p_avg_qy_fhcal_x2->Write();
+  p_avg_qx_fhcal_x3->Write();
+  p_avg_qy_fhcal_x3->Write();
+  p_avg_qx_fhcal_x4->Write();
+  p_avg_qy_fhcal_x4->Write();
+  p_avg_qx_tof->Write();
+  p_avg_qy_tof->Write();
+  p_avg_qx_emc->Write();
+  p_avg_qy_emc->Write();
 
   fOut.Close();
 
